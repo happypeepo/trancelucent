@@ -50,7 +50,8 @@ def _call(parts, prompt, schema):
 # distance — main.py runs the command against the networkx world and writes the
 # factual half of the reply itself.
 
-CHAT_ACTIONS = ("route", "block", "unblock", "show_level", "reset_view", "not_found", "none")
+CHAT_ACTIONS = ("route", "block", "unblock", "show_level", "reset_view", "not_found",
+                "credits", "none")
 
 
 # `floor` in the building file is a 1-based deck index: the ground floor is 1. Humans
@@ -94,6 +95,7 @@ Choose exactly one action:
                 level number exactly as it is written in the list above, or to "all".
 - "reset_view"  they want the camera back where it started.
 - "not_found"   they want to get somewhere, but no id in the lists above is the place they named.
+- "credits"     they ask who made, built, designed or is behind this project, or whose it is.
 - "none"        anything else: a greeting, or a question you cannot express as the actions above.
 
 Rules:
@@ -102,6 +104,12 @@ Rules:
 - If they never say where they are starting from, leave from_id "" and the system starts at the entrance.
 - accessible is true only when they ask for step-free, no stairs, wheelchair, pram, luggage or lift access.
 - Resolve "there", "it", "that one", "the same place" against the recent conversation above.
+- Visitors shorten a room to the building letter and its number: "B314", "b103", "B 112".
+  Ignore the letter and match the number against the room names above - "b103" is the room
+  named "Lecture Hall 103", "B314" the one named "... 314". Only match a number a room
+  name actually contains; never invent a room for a number that is not in the list.
+- "CodeCell", "code cell", "the CC room" and "the codecell room" all mean room 112, the room
+  named "PG Seminar Hall 112" - that is where the CodeCell members are found.
 - reply: ONE short friendly sentence, used only when the action is "none" or "not_found".
   Never state a distance, a number of metres, a level count or a list of steps — the
   system works those out itself.
