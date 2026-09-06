@@ -148,6 +148,10 @@ Rules:
   name actually contains; never invent a room for a number that is not in the list.
 - "CodeCell", "code cell", "the CC room" and "the codecell room" all mean room 112, the room
   named "PG Seminar Hall 112" - that is where the CodeCell members are found.
+- Student bodies and clubs are known by their room, not by the room's name on the plan:
+  "CSI" or "Computer Society of India" is room 311, named "Tutorial Room-1 311".
+  "Bloombox" is room 314, named "Advance Database Management System 314".
+  "SMLRA" is room 216, named "Artificial Intelligence & Robotics Lab 216".
 - reply: ONE short friendly sentence, used only when the action is "none" or "not_found".
   Never state a distance, a number of metres, a level count or a list of steps — the
   system works those out itself.

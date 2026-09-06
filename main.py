@@ -1,4 +1,4 @@
-"""Translucent - FastAPI wiring. No logic here beyond calling world and gemini."""
+"""Trancelucent - FastAPI wiring. No logic here beyond calling world and gemini."""
 import json
 import os
 
@@ -96,7 +96,7 @@ BUILDINGS = []   # every mounted building, so the page can offer a switcher with
 
 
 def mount_building(prefix, w):
-    """Serve one building's Translucent view under `prefix`. Called once per
+    """Serve one building's Trancelucent view under `prefix`. Called once per
     building — the page derives its own API base from the URL it was served at."""
     BUILDINGS.append({"prefix": prefix, "name": w.building})
     entrance = next((i for i, n in w.nodes.items() if n["type"] == "entrance"), next(iter(w.nodes)))
@@ -120,7 +120,7 @@ def mount_building(prefix, w):
 
     @app.get(prefix)
     def page():
-        return FileResponse("translucent.html", headers=NO_CACHE)
+        return FileResponse("trancelucent.html", headers=NO_CACHE)
 
     @app.get(prefix + "/state")
     def page_state():
@@ -202,7 +202,7 @@ def mount_building(prefix, w):
                                 + ", ".join(gemini.level_name(f) for f in decks) + ".")
 
         elif c.action == "credits":
-            out["reply"] = ("Translucent was made with love by team MnM — "
+            out["reply"] = ("Trancelucent was made with love by team MnM — "
                             "Khush Madhwani and Bhoumik Sangle.")
 
         elif c.action == "reset_view":
