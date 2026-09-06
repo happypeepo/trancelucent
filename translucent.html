@@ -473,6 +473,17 @@ text{font-family:var(--mono);pointer-events:none}
 // prefix it was loaded from, so one file serves every building
 const BASE=location.pathname.replace(/\/+$/,'')||'/3d';
 const API={state:BASE+'/state',route:BASE+'/route',block:BASE+'/block',chat:BASE+'/chat'};
+// Anonymous per-browser id, generated once and kept in localStorage - never an
+// account, never sent anywhere but back to this same origin. It scopes reported
+// blockages server-side: "I blocked this corridor" is my own view, not a fact
+// broadcast to every other visitor of a public deployment. Same trick as the
+// invertOrbit/invertPitch prefs below, and falls back the same way they do if
+// storage is blocked (private browsing) - the id just will not survive a reload.
+const VISITOR=(()=>{const K='twin.visitorId';
+  const gen=()=>(crypto.randomUUID?crypto.randomUUID():'v-'+Date.now().toString(36)+Math.random().toString(36).slice(2));
+  try{let v=localStorage.getItem(K); if(!v){v=gen();localStorage.setItem(K,v)} return v}catch{return gen()}
+})();
+const VHDR={'X-Visitor-Id':VISITOR};
 const HGT={room:80,corridor:24,stairs:66,lift:110,entrance:48};
 let LEVEL=340;                 // deck spacing, set from the floor count in loadState
 // The drawing frame. A 1400x780 landscape frame letterboxes to a ~217px band on a
@@ -1002,7 +1013,7 @@ const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[
 
 /* ---- data ---- */
 async function loadState(){
-  ST=await (await fetch(API.state)).json();
+  ST=await (await fetch(API.state,{headers:VHDR})).json();
   BY=Object.fromEntries(ST.nodes.map(n=>[n.id,n]));
   const [,,vw,vh]=ST.svg_viewbox; CX=vw/2; CY=vh/2;
   const floors=[...new Set(ST.nodes.map(flr))].sort((a,b)=>a-b);
@@ -1074,7 +1085,7 @@ async function trace(from,to,acc){
   let r;
   // offline the shell and the map come from cache but routing cannot: this used to
   // reject unhandled and the page just sat there with no route and no explanation
-  try{ r=await (await fetch(API.route+'?'+q)).json(); netmark(true) }
+  try{ r=await (await fetch(API.route+'?'+q,{headers:VHDR})).json(); netmark(true) }
   catch(err){
     netmark(false);
     readRoute({path:[],reason:"Can't reach the building service. The map is cached; routing is not."});
@@ -1100,7 +1111,7 @@ $('from').onchange=e=>{FROM=e.target.value;dirty=true};
 $('to').onchange=e=>{TO=e.target.value;dirty=true};
 async function setPassable(ids, passable){
   for(const id of ids)
-    await fetch(API.block+'?node='+encodeURIComponent(id)+'&passable='+passable,{method:'POST'});
+    await fetch(API.block+'?node='+encodeURIComponent(id)+'&passable='+passable,{method:'POST',headers:VHDR});
   await loadState();
   if(LASTR) await trace(LASTR.from,LASTR.to,LASTR.accessible); else dirty=true;
 }
@@ -1228,7 +1239,7 @@ async function ask(text){
   const wait=say('bot','reading the model…','wait');
   let r;
   try{
-    const res=await fetch(API.chat,{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch(API.chat,{method:'POST',headers:{...VHDR,'Content-Type':'application/json'},
       body:JSON.stringify({message:text,history:TURNS.slice(-7,-1).join('\n')})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     r=await res.json();

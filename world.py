@@ -38,6 +38,9 @@ class World:
         self.equipment = {}      # equipment id -> raw equipment dict
         self.edge_keys = []      # (a, b) in file order, so /state output is stable
         self.observations = []   # main.py appends {node_id, node_name, passable, confidence, evidence}
+        self._visitor_blocks = {}   # visitor id -> set of node ids THAT VISITOR reported blocked.
+        # Never touched by set_passable: that mutates the authored graph everyone shares
+        # (a real sealed door). This is a private overlay - my blockage is not yours.
         self._load_nodes(data)
         self._load_edges(data)
         self._load_equipment(data)
@@ -137,20 +140,26 @@ class World:
 
     # ---- public API -------------------------------------------------------
 
-    def route(self, from_id, to_id, accessible=False):
+    def route(self, from_id, to_id, accessible=False, visitor=None):
         """Dijkstra over `distance`, skipping impassable (and optionally
-        inaccessible) edges. Never returns a partial route."""
+        inaccessible) edges. Never returns a partial route.
+
+        `visitor` layers that caller's own reported blockages on top of the
+        authored building data - never another visitor's. Omit it (the
+        default) to route against the building exactly as authored, with no
+        overlay; main.py always passes the caller's id."""
         known = list(self.nodes)
         for label, nid in (("from", from_id), ("to", to_id)):
             if nid not in self.nodes:
                 return _no_route(f"Unknown {label} node id {nid!r}.{_suggest(nid, known)}")
+        blocked = self._blocked_by(visitor)
         for label, nid in (("from", from_id), ("to", to_id)):
-            if not self.nodes[nid]["passable"]:
+            if not self.nodes[nid]["passable"] or nid in blocked:
                 return _no_route(f"The {label} location '{self.nodes[nid]['name']}' is currently blocked.")
         allowed = nx.Graph()
         allowed.add_nodes_from(self.g.nodes)
         for a, b, d in self.g.edges(data=True):
-            if not d["passable"] or (accessible and not d["accessible"]):
+            if not d["passable"] or (accessible and not d["accessible"]) or a in blocked or b in blocked:
                 continue
             allowed.add_edge(a, b, distance=d["distance"])
         try:
@@ -175,7 +184,10 @@ class World:
         return out
 
     def set_passable(self, node_id, passable):
-        """Flip a node and every edge touching it."""
+        """Flip a node and every edge touching it in the AUTHORED graph everyone
+        shares - a real sealed door, not one visitor's report. Called from
+        __init__ for nodes the building file itself marks blocked. Visitor
+        reports go through block() instead, which never reaches this graph."""
         if node_id not in self.nodes:
             raise ValueError(f"{self.source}: set_passable got unknown node id {node_id!r}.{_suggest(node_id, list(self.nodes))}")
         passable = bool(passable)
@@ -186,19 +198,58 @@ class World:
             d = self.g[node_id][other]
             d["passable"] = d["base_passable"] and passable and self.nodes[other]["passable"]
 
-    def state(self):
+    def _blocked_by(self, visitor):
+        """The set of node ids `visitor` has personally reported blocked. Never
+        another visitor's - that is the entire point of this method existing."""
+        if visitor is None:
+            return frozenset()
+        return self._visitor_blocks.get(visitor, frozenset())
+
+    def block(self, visitor, node_id, passable):
+        """Record whether `visitor` personally sees `node_id` as passable. This
+        only ever grows or shrinks that one visitor's private overlay - it never
+        touches the authored graph or any other visitor's view, so two people
+        looking at the same building right now can legitimately see different
+        things blocked."""
+        if node_id not in self.nodes:
+            raise ValueError(f"{self.source}: block got unknown node id {node_id!r}.{_suggest(node_id, list(self.nodes))}")
+        if visitor is None:
+            return   # nothing to remember it against - e.g. a bare call with no visitor id
+        overlay = self._visitor_blocks.setdefault(visitor, set())
+        if passable:
+            overlay.discard(node_id)
+            if not overlay:
+                del self._visitor_blocks[visitor]   # a visitor with nothing blocked costs nothing to keep
+        else:
+            overlay.add(node_id)
+
+    def visitor_blocked(self, visitor):
+        """The node ids this visitor has personally reported blocked - used for
+        "clear everything", which must only clear MY reports, never the
+        building's authored state or another visitor's reports."""
+        return set(self._blocked_by(visitor))
+
+    def state(self, visitor=None):
+        """Nodes and edges as authored, with `passable` also reflecting this
+        visitor's own reported blockages - never another visitor's. Two people
+        at the same building see the same walls and the same stairs; only their
+        own reports differ."""
+        blocked = self._blocked_by(visitor)
         return {
             "building": self.building,
             "floor": self.floor,
             "svg_viewbox": self.svg_viewbox,
-            "nodes": [dict(self.nodes[nid]) for nid in self.nodes],
+            "nodes": [
+                {**self.nodes[nid], "passable": self.nodes[nid]["passable"] and nid not in blocked}
+                for nid in self.nodes
+            ],
             "edges": [
                 {
                     "a": a,
                     "b": b,
                     "distance": self.g[a][b]["distance"],
                     "accessible": self.g[a][b]["accessible"],
-                    "passable": self.g[a][b]["passable"],
+                    "passable": self.g[a][b]["passable"] and a not in blocked and b not in blocked,
                 }
                 for a, b in self.edge_keys
             ],

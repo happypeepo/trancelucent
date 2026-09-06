@@ -2,7 +2,7 @@
 import json
 import os
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
@@ -122,25 +122,35 @@ def mount_building(prefix, w):
     def page():
         return FileResponse("translucent.html", headers=NO_CACHE)
 
+    # X-Visitor-Id is an anonymous id the page generates once and keeps in
+    # localStorage - never an account. It scopes reported blockages so one
+    # visitor's "the corridor is blocked" is not every other visitor's reality.
+    # A caller with no header (a bare curl, an old cached page) shares one
+    # fallback bucket; the browser client always sends the header.
+    def visitor_of(x_visitor_id):
+        return x_visitor_id or "anon"
+
     @app.get(prefix + "/state")
-    def page_state():
-        return w.state()
+    def page_state(x_visitor_id: str | None = Header(None)):
+        return w.state(visitor=visitor_of(x_visitor_id))
 
     @app.get(prefix + "/route")
-    def page_route(from_id: str = Query(..., alias="from"), to: str = Query(...), accessible: bool = False):
-        return w.route(from_id, to, accessible=accessible)
+    def page_route(from_id: str = Query(..., alias="from"), to: str = Query(...),
+                    accessible: bool = False, x_visitor_id: str | None = Header(None)):
+        return w.route(from_id, to, accessible=accessible, visitor=visitor_of(x_visitor_id))
 
     @app.post(prefix + "/block")
-    def page_block(node: str, passable: bool = False):
+    def page_block(node: str, passable: bool = False, x_visitor_id: str | None = Header(None)):
         if not w.has(node):
             return {"error": f"unknown node id '{node}'"}
-        w.set_passable(node, passable)
+        w.block(visitor_of(x_visitor_id), node, passable)
         return {"node": node, "passable": passable}
 
     # gemini.chat only parses the sentence; every route, distance and blockage
     # below is computed here against networkx, never by the model.
     @app.post(prefix + "/chat")
-    def page_chat(body: ChatIn):
+    def page_chat(body: ChatIn, x_visitor_id: str | None = Header(None)):
+        visitor = visitor_of(x_visitor_id)
         c = gemini.chat(body.message, body.history, w)
         # the model's own prose is trusted only for "not_found", where it names the place it
         # could not find. Every other reply is written below from the world model, and "none"
@@ -162,7 +172,7 @@ def mount_building(prefix, w):
                 out["reply"] = (f"Where are you now? Name the space, or click it on the model, "
                                 f"and I'll route you to the {w.nodes[b]['name']}.")
                 return out
-            r = w.route(a, b, accessible=c.accessible)
+            r = w.route(a, b, accessible=c.accessible, visitor=visitor)
             out["route"] = r
             out["req"] = {"from": a, "to": b, "accessible": c.accessible}   # so the page can replay it after a blockage
             out["reply"] = r["reason"] if not r["path"] else (
@@ -177,11 +187,11 @@ def mount_building(prefix, w):
             if target:
                 targets = [target]
             elif passable:
-                targets = [i for i, n in w.nodes.items() if not n["passable"]]   # "clear everything"
+                targets = list(w.visitor_blocked(visitor))   # "clear everything" - MY reports only
             else:
                 targets = []
             for t in targets:
-                w.set_passable(t, passable)
+                w.block(visitor, t, passable)
             out["changed"] = targets
             names = ", ".join(w.nodes[t]["name"] for t in targets)
             out["reply"] = (f"{names} is now {'open' if passable else 'blocked'}." if targets
