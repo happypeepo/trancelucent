@@ -142,7 +142,11 @@ def mount_building(prefix, w):
     @app.post(prefix + "/chat")
     def page_chat(body: ChatIn):
         c = gemini.chat(body.message, body.history, w)
-        out = {"action": c.action, "reply": c.reply, "route": None, "level": None, "changed": []}
+        # the model's own prose is trusted only for "not_found", where it names the place it
+        # could not find. Every other reply is written below from the world model, and "none"
+        # falls through to the canned line - otherwise the model happily answers "what is c++".
+        out = {"action": c.action, "reply": c.reply if c.action == "not_found" else "",
+               "route": None, "level": None, "changed": []}
 
         if c.action == "route":
             a, b = node_of(c.from_id) or entrance, node_of(c.to_id)
@@ -196,6 +200,10 @@ def mount_building(prefix, w):
             else:
                 out["reply"] = ("I only know about "
                                 + ", ".join(gemini.level_name(f) for f in decks) + ".")
+
+        elif c.action == "credits":
+            out["reply"] = ("Translucent was made with love by team MnM — "
+                            "Khush Madhwani and Bhoumik Sangle.")
 
         elif c.action == "reset_view":
             out["reply"] = "View reset."
