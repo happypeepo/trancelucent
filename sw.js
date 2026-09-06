@@ -1,7 +1,7 @@
-/* Translucent service worker.
+/* Trancelucent service worker.
 
    Two caches, deliberately different strategies:
-     shell  network-first  — translucent.html is served no-store and edited constantly during the
+     shell  network-first  — trancelucent.html is served no-store and edited constantly during the
                              hackathon. Cache-first here would serve yesterday's page and
                              cost an afternoon to diagnose.
      state  stale-while-revalidate — ~120 KB per building, changes only when a human edits a
@@ -10,8 +10,8 @@
    Anything that needs Gemini or networkx is never intercepted at all, so a stale route can
    never be presented as live. Offline the page says so; it does not invent an answer. */
 
-const SHELL = 'translucent-shell-v1';
-const STATE = 'translucent-state-v1';
+const SHELL = 'trancelucent-shell-v1';
+const STATE = 'trancelucent-state-v1';
 const PRE = ['/', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {

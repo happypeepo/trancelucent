@@ -1,4 +1,4 @@
-# Translucent
+# Trancelucent
 
 made with ❤️ by MnM
 
@@ -125,7 +125,7 @@ main.py           FastAPI wiring. No logic beyond calling world and gemini.
 world.py          Graph, Dijkstra, passable/accessible state. Zero network, zero model.
 gemini.py         ER 2 chat prompt and schema.
 index.html        Landing page.
-translucent.html  The 3D building view — projection, routing UI, chat.
+trancelucent.html  The 3D building view — projection, routing UI, chat.
 fixtures/         building.*.json — the world models.
 photos/plans/     The escape-route boards the models were built from.
 ```
