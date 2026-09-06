@@ -5,10 +5,11 @@ schema, then by checking every id it returned against the world model.
 An id the world does not know becomes "unknown" with confidence 0.0.
 """
 
+import os
 import sys
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 from pydantic import BaseModel
 
 MODEL = "gemini-robotics-er-2-preview"
@@ -17,15 +18,38 @@ THINKING_LEVEL = "medium"
 
 # --- plumbing ----------------------------------------------------------------
 
-_client = None
+# Multiple keys, so one project running out of quota doesn't take the chat down.
+# GEMINI_API_KEY is the primary; GEMINI_API_KEY_2, _3, ... are extra ones to fall
+# back to, in order. Each is a distinct Google AI Studio project's key - rotating
+# is not a way around one project's quota, it is spreading load across several.
+def _api_keys():
+    keys = [os.environ[k] for k in ("GEMINI_API_KEY",) if os.environ.get(k)]
+    i = 2
+    while os.environ.get(f"GEMINI_API_KEY_{i}"):
+        keys.append(os.environ[f"GEMINI_API_KEY_{i}"])
+        i += 1
+    return keys
 
 
-def _client_lazy():
-    # genai.Client() raises without GEMINI_API_KEY, so it must not run at import time.
-    global _client
-    if _client is None:
-        _client = genai.Client()
-    return _client
+_clients = None
+_key_index = 0
+
+
+def _clients_lazy():
+    # built lazily so import never touches the network or requires a key set
+    global _clients
+    if _clients is None:
+        _clients = [genai.Client(api_key=k) for k in _api_keys()]
+        if not _clients:
+            _clients = [genai.Client()]  # surfaces the real "no key" error at call time
+    return _clients
+
+
+def _is_exhausted(exc):
+    # 429 RESOURCE_EXHAUSTED is the quota signal; anything else (bad request, bad
+    # schema, server error) is a real failure and must not be papered over by
+    # silently trying the next key.
+    return isinstance(exc, errors.APIError) and exc.code == 429
 
 
 def _reject(kind, bad_id):
@@ -33,16 +57,30 @@ def _reject(kind, bad_id):
 
 
 def _call(parts, prompt, schema):
-    resp = _client_lazy().models.generate_content(
-        model=MODEL,
-        contents=[*parts, prompt],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=schema,
-            thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
-        ),
-    )
-    return schema.model_validate_json(resp.text)
+    global _key_index
+    clients = _clients_lazy()
+    last_exc = None
+    for offset in range(len(clients)):
+        i = (_key_index + offset) % len(clients)
+        try:
+            resp = clients[i].models.generate_content(
+                model=MODEL,
+                contents=[*parts, prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=schema,
+                    thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
+                ),
+            )
+            _key_index = i  # stick with the key that worked
+            return schema.model_validate_json(resp.text)
+        except errors.APIError as e:
+            last_exc = e
+            if not _is_exhausted(e) or offset == len(clients) - 1:
+                raise
+            print(f"gemini: key {i + 1}/{len(clients)} exhausted, trying the next one",
+                  file=sys.stderr)
+    raise last_exc
 
 
 # --- chat: plain English -> one command --------------------------------------
