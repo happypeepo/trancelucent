@@ -6,4 +6,8 @@ __pycache__/
 # never commit the API key
 .env
 .env.local
+# raw timetable PDFs: this semester only, re-issued often, never read by the app.
+# fixtures/timetable.json is what the app reads, and it records every source file's sha256.
+timetables/*
+!timetables/*.md
 

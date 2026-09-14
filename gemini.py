@@ -6,6 +6,7 @@ An id the world does not know becomes "unknown" with confidence 0.0.
 """
 
 import os
+import re
 import sys
 
 from google import genai
@@ -89,7 +90,8 @@ def _call(parts, prompt, schema):
 # factual half of the reply itself.
 
 CHAT_ACTIONS = ("route", "block", "unblock", "show_level", "reset_view", "not_found",
-                "credits", "none")
+                "credits", "free_room", "find_prof", "availability", "none")
+DAY_WORDS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "today", "tomorrow")
 
 
 # `floor` in the building file is a 1-based deck index: the ground floor is 1. Humans
@@ -134,6 +136,12 @@ Choose exactly one action:
 - "reset_view"  they want the camera back where it started.
 - "not_found"   they want to get somewhere, but no id in the lists above is the place they named.
 - "credits"     they ask who made, built, designed or is behind this project, or whose it is.
+- "free_room"   they want an empty, free or unoccupied classroom, lab or room (now or at some time),
+                or they say a room you already suggested is not actually free. Set from_id to where
+                they are, if they said it now or earlier in the conversation.
+- "find_prof"   they ask where a professor, teacher or faculty member is, or whether one is teaching or
+                free. Copy the name or initials exactly as they wrote them into prof_query.
+- "availability" they want the free/in-use room colours on the model shown (on true) or hidden (on false).
 - "none"        anything else: a greeting, or a question you cannot express as the actions above.
 
 Rules:
@@ -152,7 +160,18 @@ Rules:
   "CSI" or "Computer Society of India" is room 311, named "Tutorial Room-1 311".
   "Bloombox" is room 314, named "Advance Database Management System 314".
   "SMLRA" is room 216, named "Artificial Intelligence & Robotics Lab 216".
-- reply: ONE short friendly sentence, used only when the action is "none" or "not_found".
+- day is "Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun", "today" or "tomorrow" when they name a day, else "".
+  time is 24-hour "HH:MM" when they name a time ("3pm" is "15:00", "at 11" is "11:00"), else "" for
+  right now. Only free_room and find_prof use day and time.
+- If the system just asked "Did you mean ..." with a list of professors and the visitor picks one
+  (by name, by initials, "the second one", or by what they teach), use find_prof and copy that
+  professor's initials from the system's question into prof_query.
+- skip_rooms lists timetable room codes (like "B203" or "B115A") that the conversation already offered
+  and the visitor says are not free. Otherwise it is empty.
+- Never answer who teaches where, or which room is free, yourself: the system looks that up.
+- reply: ONE short friendly sentence, used only when the action is "none" or "not_found". Never use
+  dashes of any kind in it (no em dash, en dash, double hyphen or spaced hyphen); use a comma or a
+  full stop instead.
   Never state a distance, a number of metres, a level count or a list of steps — the
   system works those out itself.
 - for "not_found", reply names the place you could not find and stops there. The system
@@ -168,9 +187,14 @@ class ChatCommand(BaseModel):
     level: str
     accessible: bool
     reply: str
+    prof_query: str
+    day: str
+    time: str
+    skip_rooms: list[str]
+    on: bool
 
 
-def chat(message, history, world):
+def chat(message, history, world, room_codes=()):
     nodes = "\n".join(
         f"- {n['id']}: {n['name']}, {n['type']}, {level_name(n.get('floor', 1))}"
         for n in world.nodes.values()
@@ -192,4 +216,14 @@ def chat(message, history, world):
         if value and not world.has(value):
             _reject(f"chat {field}", value)
             setattr(r, field, "")
+    # timetable fields: a room code must exist in the timetable, a day/time must parse.
+    # prof_query stays plain text - timetable.find_prof resolves it, so no professor id
+    # ever comes from the model.
+    for code in [c for c in r.skip_rooms if c not in room_codes]:
+        _reject("chat skip_rooms", code)
+    r.skip_rooms = [c for c in r.skip_rooms if c in room_codes]
+    if r.day not in DAY_WORDS:
+        r.day = ""
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", r.time.strip())
+    r.time = f"{int(m.group(1)):02d}:{m.group(2)}" if m and int(m.group(1)) < 24 and int(m.group(2)) < 60 else ""
     return r

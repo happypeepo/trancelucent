@@ -11,7 +11,7 @@
    never be presented as live. Offline the page says so; it does not invent an answer. */
 
 const SHELL = 'trancelucent-shell-v1';
-const STATE = 'trancelucent-state-v1';
+const STATE = 'trancelucent-state-v2';   // v2: /state now carries the room timetable
 const PRE = ['/', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {

@@ -4,6 +4,8 @@
 .claude
 # 15 MB of source boards the app never serves
 photos
+# 20 MB of timetable PDFs; the app reads fixtures/timetable.json
+timetables
 __pycache__
 *.pyc
 .env

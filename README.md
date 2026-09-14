@@ -33,7 +33,7 @@ Copy the env template and add your key:
 cp .env.example .env
 ```
 
-`.env` is gitignored and must stay that way — this repo is public.
+`.env` is gitignored and must stay that way — the repo is private, but the deployed app is public.
 
 Then run:
 
@@ -86,17 +86,20 @@ Pydantic class as `response_schema`.
 
 | Function | Input | Returns |
 |---|---|---|
-| `chat(message, history, world)` | plain English | one command from a fixed six-action set |
+| `chat(message, history, world, room_codes)` | plain English | one command from a fixed action set |
 
 `chat` only parses the sentence. Every route, distance and blockage it triggers is computed
-against networkx afterwards.
+against networkx afterwards, and every "which room is free" or "where is this professor" is
+looked up in `timetable.py`.
 
 ### Every response is validated twice
 
 1. **Schema.** Pydantic, enforced at the SDK boundary.
 2. **Identity.** Every id the model returned is checked with `world.has()` against the
    building file. Anything that fails becomes `"unknown"` with confidence `0.0`, and the
-   rejection is logged to stderr.
+   rejection is logged to stderr. Timetable room codes are checked against the timetable, days
+   and times must parse, and a professor is never an id from the model: the model copies the
+   name as typed and `timetable.find_prof` matches it deterministically.
 
 Prompts are module-level constants built from the world model at call time — the candidate
 lists are injected fresh on every request. No id is ever hardcoded in a prompt.
@@ -121,17 +124,19 @@ matching, and all distances.
 ## Layout
 
 ```
-main.py           FastAPI wiring. No logic beyond calling world and gemini.
+main.py           FastAPI wiring and the chat replies, written from world and timetable.
 world.py          Graph, Dijkstra, passable/accessible state. Zero network, zero model.
+timetable.py      Semester timetable: hour-wise states, free rooms, where a professor is.
 gemini.py         ER 2 chat prompt and schema.
 index.html        Landing page.
-trancelucent.html  The 3D building view — projection, routing UI, chat.
-fixtures/         building.*.json — the world models.
+trancelucent.html  The 3D building view — projection, routing UI, chat, room availability.
+fixtures/         building.*.json — the world models; timetable.json — the semester timetable.
 photos/plans/     The escape-route boards the models were built from.
+timetables/       Raw timetable PDFs + the one-off extraction (gitignored, except the plan).
 ```
 
-`world.py` is importable and fully exercisable **with no API key** — nothing in it touches the
-network or a model.
+`world.py` and `timetable.py` are importable and fully exercisable **with no API key** —
+nothing in them touches the network or a model. `python timetable.py` runs its self-check.
 
 ### Endpoints
 
@@ -161,3 +166,28 @@ names sign text, door colour, and a fixture.
 
 `type` is one of `room · corridor · stairs · lift · entrance`. Edges carry `distance`,
 `accessible` (false on stairs — this is what routes a wheelchair around them) and `passable`.
+
+---
+
+## Timetables
+
+Students can ask the chat for **an empty room near them** or **where a professor is** at any
+time, and the model paints rooms **free / in use / no timetable** for the current hour. The full
+decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
+
+- **Data.** `fixtures/timetable.json` is built once from the semester's 164 timetable sheets
+  (room, class and professor sheets) by `timetables/_work/build.py`. The app never reads a PDF.
+  Each session keeps the ids of the sheets it came from; `sources[]` records every file's
+  creation time and sha256.
+- **Conflicts.** Sheets disagree when a room changes. The newest file wins for each
+  professor-hour, and the dropped claims are listed in `overrides[]`.
+- **Free is never assumed.** A room is called free only if it has its own room sheet. Any other
+  room is either in use (some sheet books it) or has no timetable.
+- **Room codes → model.** A code gets a node only when evidence pins it — a number on the escape
+  board, the floor layout, or who teaches there (see the plan's section 5). The rest are answered
+  by code and floor in chat, with no map colour.
+- **Time.** India time (UTC+05:30) on both sides. `/<bldg>/state` carries each room's weekly
+  busy spans, so the page works out the hour itself: colours work offline and "what's free at
+  3pm Thursday" in chat just moves the page's clock.
+- **Halves.** Labs split on the timetable (B115A / B115B) are drawn as split boxes, one colour
+  per half — an approximation, like the model.

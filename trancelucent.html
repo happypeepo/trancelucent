@@ -90,6 +90,13 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
 .hud .cy{color:var(--live)}
 .lg{display:flex;align-items:center;gap:8px;margin-top:5px}
 .lg s{width:16px;height:0;border-top:2px solid;display:block;text-decoration:none}
+.hud .av{margin-top:4px}
+#avail{display:block;margin-top:8px}
+#avail[aria-pressed=false]{color:var(--dimmer)}
+.hud.bl:has(#avail[aria-pressed=false]) .av{opacity:.35}
+/* "Showing Thu 15:00 · not live" / "No lectures scheduled now". Tap to go back to now. */
+#when{display:block;margin:0 0 6px auto;color:var(--live);text-align:inherit;letter-spacing:.11em;line-height:1.5}
+#when[hidden]{display:none}
 
 #cube{width:150px;height:150px;display:block;margin:6px 0 2px auto;pointer-events:auto;overflow:visible}
 .cubebar{display:flex;gap:9px;align-items:center;justify-content:flex-end;
@@ -238,6 +245,7 @@ text{font-family:var(--mono);pointer-events:none}
   #stage{padding-bottom:0}
   .tick,.hud.bl{display:none}
   .hud.br{bottom:auto;top:10px;left:14px;right:auto;text-align:left;max-width:58vw;font-size:9px}
+  #when{margin-left:0;font-size:9px}
 
   /* cube stays as an orientation readout and stops being a control:
      a tap target here would fight the one-finger orbit gesture. */
@@ -410,9 +418,18 @@ text{font-family:var(--mono);pointer-events:none}
       <div class="lg"><s style="border-color:#00e5ff"></s>traced route</div>
       <div class="lg"><s style="border-color:#ff3b5c"></s>blocked</div>
       <div class="lg"><s style="border-color:#26333d;border-top-style:dashed"></s>stair / lift shaft</div>
+      <!-- room availability from the timetable (palette P1). The button is the desktop toggle;
+           phones hide this legend, so there it is chat only ("hide free rooms"). -->
+      <div class="av">
+        <div class="lg"><s style="border-color:#5ef2a8"></s>free</div>
+        <div class="lg"><s style="border-color:#ffb42f"></s>class within 15 min</div>
+        <div class="lg"><s style="border-color:#9d6bdb"></s>in use</div>
+        <div class="lg"><s style="border-color:#8fa3ae;border-top-style:dashed"></s>no timetable</div>
+      </div>
+      <button class="lnk" id="avail" aria-pressed="true" title="Show or hide room availability">availability on</button>
     </div>
 
-    <div class="hud br"><span id="prompt">drag to orbit · scroll to zoom · shift-drag to pan</span></div>
+    <div class="hud br"><button class="lnk" id="when" hidden></button><span id="prompt">drag to orbit · scroll to zoom · shift-drag to pan</span></div>
   </div>
 
   <aside>
@@ -596,8 +613,74 @@ function readout(){
   $('oZm').textContent=cam.scale.toFixed(2)+'×';
 }
 
+/* ---- timetable ---- */
+// Room availability from the semester timetable. /state carries each room's weekly busy
+// spans (ST.timetable.nodes[id] = parts, each {code, own, busy:[[day,from,to,what,profs,makeup]]});
+// the page works out the hour itself, so colours need no request and still work offline.
+// Hours are India time whatever zone the device is in. Palette P1 and every rule here:
+// timetables/TIMETABLE INCORPORATION PLAN.md, section 7. Free is only ever claimed for a
+// room with its own sheet (part.own); anything else is in use or "no timetable".
+const TT_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+let AT=null;                 // null = live; {day,hour} after chat asks about another time
+let AVAIL=(()=>{try{return localStorage.getItem('twin.avail')!=='0'}catch{return true}})();
+let HERE=null, PENDING=null; // the space last tapped, and a question waiting for "where are you"
+function istNow(){
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',
+    hour:'numeric',minute:'numeric',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return {day:p.weekday, hour:+p.hour, min:+p.minute};
+}
+const clock=()=>AT?{day:AT.day,hour:AT.hour,min:0}:istNow();
+const inHours=c=>TT_DAYS.indexOf(c.day)<5&&c.hour>=7&&c.hour<19;
+// the parts to paint for a node right now, or null when availability is not shown
+function liveParts(n){
+  if(!AVAIL||!ST||!ST.timetable||!inHours(clock())) return null;   // plain model off hours
+  return ST.timetable.nodes[n.id]||null;
+}
+function partState(p,c){
+  const on=h=>p.busy.filter(b=>b[0]===c.day&&b[1]<=h&&h<b[2]&&!b[5]);
+  const now=on(c.hour);
+  if(now.length){ let end=c.hour+1; while(end<19&&on(end).length) end++;
+    return {s:'busy',until:end,what:now[0][3]} }
+  if(!p.own) return {s:'none'};
+  let until=c.hour+1; while(until<19&&!on(until).length) until++;
+  // ponytail: the sheets are hourly, so "starts soon" is simply the last 15 min before a booked hour
+  return {s:until===c.hour+1&&until<19&&c.min>=45?'soon':'free', until};
+}
+function availTone(n,i){
+  const parts=liveParts(n); if(!parts) return null;
+  const st=partState(parts[Math.min(i||0,parts.length-1)],clock()).s;
+  return st==='free'?{s:'#5ef2a8',f:'rgba(94,242,168,',t:.20}
+       : st==='soon'?{s:'#ffb42f',f:'rgba(255,180,47,',t:.12}
+       : st==='busy'?{s:'#9d6bdb',f:'rgba(157,107,219,',t:.07}
+       : {s:'#8fa3ae',f:'rgba(143,163,174,',t:.04,d:'4 3'};
+}
+function availText(n){
+  const parts=liveParts(n); if(!parts) return '';
+  const c=clock(), hh=h=>String(h).padStart(2,'0')+':00';
+  return '  ·  '+parts.map(p=>{const s=partState(p,c);
+    return (parts.length>1?p.code+' ':'')+(s.s==='busy'?'in use till '+hh(s.until)
+      : s.s==='none'?'no timetable' : s.s==='soon'?'class at '+hh(s.until) : 'free till '+hh(s.until))}).join(' · ');
+}
+function setAvail(on){
+  AVAIL=on; try{localStorage.setItem('twin.avail',on?'1':'0')}catch{}
+  const b=$('avail'); b.setAttribute('aria-pressed',String(on)); b.textContent='availability '+(on?'on':'off');
+  markWhen(); dirty=true;
+}
+function markWhen(){
+  const b=$('when');
+  if(!ST||!ST.timetable){b.hidden=true; return}
+  const asOf=new Date(ST.timetable.as_of+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  if(AT) b.textContent='Showing '+AT.day+' '+String(AT.hour).padStart(2,'0')+':00 · not live ✕';
+  else if(AVAIL&&!inHours(istNow())) b.textContent='No lectures scheduled now · timetable as of '+asOf;
+  else {b.hidden=true; return}
+  b.hidden=false;
+}
+$('when').onclick=()=>{AT=null; markWhen(); dirty=true};
+$('avail').onclick=()=>setAvail(!AVAIL);
+setInterval(()=>{markWhen(); dirty=true},60000);   // "now" moves; a repaint a minute keeps it honest
+
 /* ---- paint ---- */
-function tone(n){
+function tone(n,part){
   if(!n.passable)                     return {s:'#ff3b5c',f:'rgba(255,59,92,',t:.26};
   // the step the phone pager is currently on: same cyan, much louder, so it reads
   // as "you are here in the instructions" against the rest of the traced route
@@ -605,7 +688,7 @@ function tone(n){
   if(ROUTE&&ROUTE.includes(n.id))     return {s:'#00e5ff',f:'rgba(0,229,255,',t:.24};
   if(n.id===HOVER||n.id===FROM||n.id===TO)
                                       return {s:'#e9eef3',f:'rgba(233,238,243,',t:.16};
-  return {s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
+  return availTone(n,part)||{s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
 }
 
 function render(){
@@ -674,10 +757,12 @@ function render(){
     const r=n.svg_rect, x=r[0], y=r[1], w=r[2], h=r[3], z1=base(n), z2=roof(n), f=flr(n);
     // A fixed world-space light. Without it every wall carries the identical tint
     // and the eye is free to flip the solid inside-out (Necker cube).
-    const face=(p,isTop,lit)=>{
-      const t=tone(n), op=isTop?t.t*1.25:t.t*lit;
-      onDeck(f,avgz(p),el('polygon',{points:pts(p),fill:t.f+op.toFixed(3)+')',stroke:t.s,
-        'stroke-width':isTop?1.2:.7,'stroke-opacity':isTop?.95:.30+lit*.5,'data-id':n.id}));
+    const face=(p,isTop,lit,part)=>{
+      const t=tone(n,part), op=isTop?t.t*1.25:t.t*lit;
+      const a={points:pts(p),fill:t.f+op.toFixed(3)+')',stroke:t.s,
+        'stroke-width':isTop?1.2:.7,'stroke-opacity':isTop?.95:.30+lit*.5,'data-id':n.id};
+      if(t.d&&isTop) a['stroke-dasharray']=t.d;     // "no timetable" dashes its roof outline only
+      onDeck(f,avgz(p),el('polygon',a));
     };
     // A node carrying `steps` is drawn as a real stepped solid instead of one box:
     // each tread is its own slab, running from that tread to the head of the flight,
@@ -723,11 +808,20 @@ function render(){
     // polygon in svg coords - the Orion workshop is an L that wraps the auditorium's
     // south-east corner, touching it rather than sitting inside it. Wind it clockwise
     // (y down), like `box` does, or the wall shading comes out inside-out.
-    } else slabs.push((n.attributes&&n.attributes.footprint)
-                        ? [n.attributes.footprint, z1, z2] : box(x,y,w,h,z1,z2));
-    for(const [poly,sz1,sz2,buried] of slabs){
+    } else if(n.attributes&&n.attributes.footprint) slabs.push([n.attributes.footprint, z1, z2]);
+    else{
+      // A lab the timetable splits into halves (B115A / B115B) is drawn as that many boxes
+      // along its long side, A first from the west/north end: an approximation, like the
+      // model itself. Each part carries its own availability colour.
+      const k=(liveParts(n)||[0]).length;
+      for(let i=0;i<k;i++){
+        const b=w>=h?box(x+w*i/k,y,w/k,h,z1,z2):box(x,y+h*i/k,w,h/k,z1,z2);
+        b[3]=0; b[4]=i; slabs.push(b);
+      }
+    }
+    for(const [poly,sz1,sz2,buried,part] of slabs){
       const c=poly.map(spin);
-      face(c.map(q=>project(q[0],q[1],sz2)),true,1);
+      face(c.map(q=>project(q[0],q[1],sz2)),true,1,part);
       for(let i=buried||0;i<c.length;i++){
         const p0=c[i], p1=c[(i+1)%c.length];
         const ex=p1[0]-p0[0], ey=p1[1]-p0[1], len=Math.hypot(ex,ey)||1;
@@ -739,7 +833,7 @@ function render(){
         if(nsteps>1&&nx*VX+ny*VY>=0) continue;
         const lit=.30+.70*Math.max(0,nx*LIGHT[0]+ny*LIGHT[1]);
         face([project(p0[0],p0[1],sz1),project(p1[0],p1[1],sz1),
-              project(p1[0],p1[1],sz2),project(p0[0],p0[1],sz2)],false,lit);
+              project(p1[0],p1[1],sz2),project(p0[0],p0[1],sz2)],false,lit,part);
       }
     }
     // stairs get treads, lifts get a car: recognisable at a glance on the deck.
@@ -834,7 +928,8 @@ function render(){
     svg.appendChild(el('text',{x:q[0],y:q[1],'text-anchor':'middle','font-size':12.5,
       'font-weight':500,fill:!n.passable?'#ff8fa3':on?'#00e5ff':'#e9eef3',
       stroke:'#07090c','stroke-width':4,'paint-order':'stroke','letter-spacing':'.04em'},
-      n.name+(me?'  '+LEVEL_NAME(flr(n)):'')));
+      // on a phone the availability text would run off a 390px screen; #prompt carries it there
+      n.name+(me?'  '+LEVEL_NAME(flr(n))+(MOBILE?'':availText(n)):'')));
   }
 }
 
@@ -973,6 +1068,10 @@ function readRoute(r){
   const bl=ST.nodes.filter(n=>!n.passable);
   if(bl.length) b.insertAdjacentHTML('beforeend',
     bl.map(n=>'<div class="blk">✕ '+esc(n.name)+' blocked</div>').join(''));
+  // A route hides the decks it never touches on desktop too: every floor it crosses stays
+  // lit at once and the camera reframes onto them. (The phone pages one deck at a time in
+  // showStep instead.) The level pills still override, and clearRoute() puts every deck back.
+  if(!MOBILE){ show=new Set(lv); markSeg(); fitView() }
   mstep(r);        // the phone bar reads this same object, so the two cannot disagree
 }
 
@@ -1029,8 +1128,9 @@ async function loadState(){
     if(keep&&BY[keep]) s.value=keep;
     else if(id!=='blk'&&keep==='') s.value='';   // blk has no blank option to fall back to
   }
+  markWhen();
   if(!seeded){
-    const ent=ST.nodes.find(n=>n.type==='entrance')||ST.nodes[0];
+    const ent=mainEntrance();
     // "toilets on the first floor" is a poor thing to greet someone with
     const good=ST.nodes.filter(n=>n.type==='room'&&!DULL.test(n.name));
     const far=good.slice().sort((a,b)=>flr(b)-flr(a))[0]||ST.nodes[ST.nodes.length-1];
@@ -1045,6 +1145,10 @@ async function loadState(){
   }
   dirty=true;
 }
+// Aryabhatta has four entrance-type nodes and "West Exit" is first in the file; main.py
+// prefers the one named Main for its gate offer and default origin, and so does the page.
+const mainEntrance=()=>ST.nodes.find(n=>n.type==='entrance'&&/main/i.test(n.name))
+  ||ST.nodes.find(n=>n.type==='entrance')||ST.nodes[0];
 function mkSeg(label,v){
   const b=document.createElement('button'); b.textContent=label; b.dataset.v=v;
   b.title = v==='all' ? 'Show every deck' : 'Toggle this deck';
@@ -1194,7 +1298,7 @@ stage.addEventListener('pointermove',e=>{
     if(e.target.closest('.hud')) return;   // HUD controls write their own #prompt text
     const id=e.target.dataset&&e.target.dataset.id||null;
     if(id!==HOVER){HOVER=id; stage.classList.toggle('hot',!!id); dirty=true;
-      $('prompt').textContent=id?BY[id].name.toUpperCase()+'  ·  click to set '+PICK:HINT()}
+      $('prompt').textContent=id?BY[id].name.toUpperCase()+availText(BY[id])+'  ·  click to set '+PICK:HINT()}
     return;
   }
   const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
@@ -1215,9 +1319,13 @@ stage.addEventListener('wheel',e=>{e.preventDefault();
   aim.scale=Math.max(0.35,Math.min(2.6,aim.scale*(1-e.deltaY*0.0013)))},{passive:false});
 
 function pickNode(id){
+  // a tapped space is also "where I am" for the chat. If the bot has just asked where you
+  // are, the tap answers it: the waiting question is asked again, now with an origin.
+  HERE=id;
+  if(PENDING){const q=PENDING; PENDING=null; FROM=id; $('from').value=id; PICK='to'; ask(q); dirty=true; return}
   if(PICK==='from'){FROM=id; $('from').value=id; PICK='to'}
   else{TO=id; $('to').value=id; PICK='from'; trace(FROM,TO,accOn())}
-  $('prompt').textContent=BY[id].name.toUpperCase()+'  ·  click to set '+PICK;
+  $('prompt').textContent=BY[id].name.toUpperCase()+availText(BY[id])+'  ·  click to set '+PICK;
   dirty=true;
 }
 
@@ -1240,11 +1348,11 @@ async function ask(text){
   let r;
   try{
     const res=await fetch(API.chat,{method:'POST',headers:{...VHDR,'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,history:TURNS.slice(-7,-1).join('\n')})});
+      body:JSON.stringify({message:text,history:TURNS.slice(-7,-1).join('\n'),here:HERE||''})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     r=await res.json();
   }catch(err){wait.remove(); netmark(false);
-    say('bot','Could not reach the building service — '+err.message,'err');
+    say('bot','Could not reach the building service: '+err.message,'err');
     busy=false; return}
   wait.remove(); netmark(true);
 
@@ -1259,6 +1367,10 @@ async function ask(text){
     markSeg(); fitView();
   }
   if(r.action==='reset_view') resetView();
+  PENDING = r.action==='need_origin' ? text : null;
+  // "what's free at 3pm Thursday" moves the map's clock; asking about now puts it back
+  if('at' in r){AT=r.at; if(AT&&!AVAIL) setAvail(true); markWhen()}
+  if('availability' in r) setAvail(!!r.availability);
   if(r.changed&&r.changed.length){await loadState(); if(LASTR) await trace(LASTR.from,LASTR.to,LASTR.accessible)}
   dirty=true;
   say('bot',r.reply); TURNS.push('system: '+r.reply);
@@ -1282,15 +1394,14 @@ addEventListener('keydown',e=>{
 // this on a desktop; a phone has no Escape key, so #mclear is the only way back. One
 // function so the two can never drift apart.
 function clearRoute(){
-  ROUTE=null; LASTR=null; FROM=null; TO=null; PICK='from'; HOVER=null;
+  ROUTE=null; LASTR=null; FROM=null; TO=null; PICK='from'; HOVER=null; HERE=null; PENDING=null;
   $('from').value=''; $('to').value='';
   readRoute(null);              // clears the sidebar list AND the phone pager, via mstep(null)
   $('prompt').textContent=HINT();
   stage.classList.remove('hot');
-  // Only the phone auto-hides decks (showStep bails on desktop), so only the phone
-  // has to put them back — otherwise clearing strands you on three floors of seven with
-  // nothing drawn. Desktop keeps whatever decks the user chose by hand.
-  if(MOBILE&&ST){ show=new Set(ST.nodes.map(flr)); markSeg(); fitView() }
+  // A route auto-hides decks on both phone (showStep) and desktop (readRoute), so clearing
+  // puts every deck back — otherwise you are stranded on three floors of seven with nothing drawn.
+  if(ST){ show=new Set(ST.nodes.map(flr)); markSeg(); fitView() }
   dirty=true;
 }
 function buildHints(){
@@ -1298,18 +1409,19 @@ function buildHints(){
   const fine=n=>n.type==='room'&&!DULL.test(n.name);
   const up  = ST.nodes.filter(fine).sort((a,b)=>flr(b)-flr(a))[0] || pick(n=>n.type==='room');
   const room= pick(n=>fine(n)&&flr(n)===1, up&&up.name) || pick(fine, up&&up.name);
-  const ent = pick(n=>n.type==='entrance') || ST.nodes[0];
+  const ent = mainEntrance();
   const way = pick(n=>n.type==='stairs'||n.type==='lift');
   HINTS=[
     up   && 'Take me to the '+up.name+', no stairs',
     room && ent && 'How do I reach the '+room.name+' from the '+ent.name+'?',
+    ST.timetable && ent && 'Find me an empty room, I\'m at the '+ent.name,
     way  && 'The '+way.name+' is shut for repairs',
   ].filter(Boolean);
   chips.textContent='';
   HINTS.forEach(h=>{const b=document.createElement('button');
     b.type='button'; b.className='chip'; b.textContent=h; b.onclick=()=>ask(h); chips.appendChild(b)});
 }
-say('bot','Ask where you want to go, or tell me a space is blocked.');
+say('bot','Ask where you want to go, find an empty room or a professor, or tell me a space is blocked.');
 
 // the server says which buildings are mounted, so no guessing and no 404 probe
 (async()=>{
