@@ -677,6 +677,9 @@ function markWhen(){
 }
 $('when').onclick=()=>{AT=null; markWhen(); dirty=true};
 $('avail').onclick=()=>setAvail(!AVAIL);
+// the markup ships the button reading "on"; the stored preference may say otherwise, and
+// setAvail is the only thing that writes the label, so run it once against what we restored
+setAvail(AVAIL);
 setInterval(()=>{markWhen(); dirty=true},60000);   // "now" moves; a repaint a minute keeps it honest
 
 /* ---- paint ---- */

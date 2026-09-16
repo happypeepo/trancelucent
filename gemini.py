@@ -8,6 +8,7 @@ An id the world does not know becomes "unknown" with confidence 0.0.
 import os
 import re
 import sys
+import time
 
 from google import genai
 from google.genai import errors, types
@@ -47,10 +48,21 @@ def _clients_lazy():
 
 
 def _is_exhausted(exc):
-    # 429 RESOURCE_EXHAUSTED is the quota signal; anything else (bad request, bad
-    # schema, server error) is a real failure and must not be papered over by
-    # silently trying the next key.
+    # 429 RESOURCE_EXHAUSTED means THIS key's quota is gone, so the next key is worth
+    # trying. Anything else (bad request, bad schema) is a real failure and must not be
+    # papered over by silently moving on.
     return isinstance(exc, errors.APIError) and exc.code == 429
+
+
+def _is_busy(exc):
+    # 503 UNAVAILABLE (and the occasional 500) is the model being overloaded, not the key.
+    # Every key shares that same capacity, so rotating keys cannot help: the fix is to wait
+    # a moment and ask again. Without this a momentary spike takes the whole chat down.
+    return isinstance(exc, errors.APIError) and exc.code in (500, 503)
+
+
+BUSY_TRIES = 3        # attempts per key before a busy model is treated as a real failure
+BUSY_BACKOFF = 1.0    # seconds, multiplied by the attempt number
 
 
 def _reject(kind, bad_id):
@@ -63,24 +75,32 @@ def _call(parts, prompt, schema):
     last_exc = None
     for offset in range(len(clients)):
         i = (_key_index + offset) % len(clients)
-        try:
-            resp = clients[i].models.generate_content(
-                model=MODEL,
-                contents=[*parts, prompt],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=schema,
-                    thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
-                ),
-            )
-            _key_index = i  # stick with the key that worked
-            return schema.model_validate_json(resp.text)
-        except errors.APIError as e:
-            last_exc = e
-            if not _is_exhausted(e) or offset == len(clients) - 1:
+        for attempt in range(1, BUSY_TRIES + 1):
+            try:
+                resp = clients[i].models.generate_content(
+                    model=MODEL,
+                    contents=[*parts, prompt],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=schema,
+                        thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
+                    ),
+                )
+                _key_index = i  # stick with the key that worked
+                return schema.model_validate_json(resp.text)
+            except errors.APIError as e:
+                last_exc = e
+                if _is_busy(e) and attempt < BUSY_TRIES:
+                    wait = BUSY_BACKOFF * attempt
+                    print(f"gemini: model busy ({e.code}), retry {attempt}/{BUSY_TRIES - 1} "
+                          f"in {wait:.0f}s", file=sys.stderr)
+                    time.sleep(wait)
+                    continue
+                if _is_exhausted(e) and offset < len(clients) - 1:
+                    print(f"gemini: key {i + 1}/{len(clients)} exhausted, trying the next one",
+                          file=sys.stderr)
+                    break   # same request, next key
                 raise
-            print(f"gemini: key {i + 1}/{len(clients)} exhausted, trying the next one",
-                  file=sys.stderr)
     raise last_exc
 
 
