@@ -66,7 +66,7 @@ Open <http://127.0.0.1:8000>.
 | API | FastAPI + uvicorn | JSON with no ceremony. Route handlers contain no logic. |
 | State | One JSON file in memory | The dataset is a building. A database would add operational cost and no capability. |
 | Frontend | Vanilla JS + inline SVG | No framework, no bundler, no CDN. Two self-contained files. |
-| 3D | Hand-written projection | ~60 lines of matrix maths beats a 600 KB dependency for 200 boxes. |
+| 3D | Hand-written projection | ~60 lines of matrix maths beats a 600 KB dependency for 200 boxes. One SVG element is pooled and reused per shape, so there is no virtual DOM to diff either. |
 
 ---
 
@@ -191,3 +191,24 @@ decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
   3pm Thursday" in chat just moves the page's clock.
 - **Halves.** Labs split on the timetable (B115A / B115B) are drawn as split boxes, one colour
   per half — an approximation, like the model.
+
+---
+
+## Rendering
+
+The view used to rebuild about 1,600 SVG elements on every moving frame, which was smooth
+only on Apple hardware. It now keeps one element per shape and writes only the attributes
+that changed. Main-thread work per moving frame: **34.7 ms → 18.6 ms**, and **4.3 ms** in
+lite mode. The settled picture is identical — no pixel differs by more than 23/255. The full
+record is `VISUAL PERFORMANCE PLAN.md`.
+
+- **Lite mode** starts immediately when the browser reports under 4 GB of RAM and at most 4
+  cores, and otherwise after 20 frames slower than 24 ms. A device that can keep up is never
+  downgraded.
+- **While a lite device is moving** it draws batched room tops, plate outlines, no cube
+  redraw, and a half-resolution SVG with static route dashes. Let go and the full picture
+  comes back, so nothing is permanently lost to the cheaper path.
+- **Offline.** The service worker serves the last `/state` it saw, so the model and its room
+  colours still open with no network. Cached building data is versioned (`state-v3`): when
+  the node ids change, as the Bhaskaracharya corridor split changed them, a stale cache is
+  retired rather than routed over.
