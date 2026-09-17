@@ -11,7 +11,9 @@
    never be presented as live. Offline the page says so; it does not invent an answer. */
 
 const SHELL = 'trancelucent-shell-v1';
-const STATE = 'trancelucent-state-v2';   // v2: /state now carries the room timetable
+// v2: /state carries the room timetable. v3: Bhaskaracharya's corridors were split, so a cached
+// v2 building no longer matches the node ids the server routes over.
+const STATE = 'trancelucent-state-v3';
 const PRE = ['/', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {
@@ -39,6 +41,10 @@ self.addEventListener('fetch', e => {
       const hit = await c.match(r);
       const net = fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res })
                           .catch(() => hit);
+      // cache:'reload' is the page asking for the building as it is NOW - right after a
+      // blockage, or to catch up with a new building file - so the network goes first and
+      // the cache is only the offline fallback. Everything else stays stale-while-revalidate.
+      if (r.cache === 'reload') return net;
       return hit || net;                          // stale immediately, fresh next launch
     }));
     return;

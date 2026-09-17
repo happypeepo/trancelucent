@@ -10,38 +10,74 @@
  "nodes": [
   {
    "id": "corr_n_f1",
-   "name": "North Corridor Ground Floor",
+   "name": "North Corridor Ground Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 1,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f1",
+   "name": "North Corridor Ground Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 1,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f1",
-   "name": "South Corridor Ground Floor",
+   "name": "South Corridor Ground Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 1,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f1",
+   "name": "South Corridor Ground Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 1,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -424,38 +460,74 @@
   },
   {
    "id": "corr_n_f2",
-   "name": "North Corridor First Floor",
+   "name": "North Corridor First Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 2,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f2",
+   "name": "North Corridor First Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 2,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f2",
-   "name": "South Corridor First Floor",
+   "name": "South Corridor First Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 2,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f2",
+   "name": "South Corridor First Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 2,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -982,38 +1054,74 @@
   },
   {
    "id": "corr_n_f3",
-   "name": "North Corridor Second Floor",
+   "name": "North Corridor Second Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 3,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f3",
+   "name": "North Corridor Second Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 3,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f3",
-   "name": "South Corridor Second Floor",
+   "name": "South Corridor Second Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 3,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f3",
+   "name": "South Corridor Second Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 3,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -1558,38 +1666,74 @@
   },
   {
    "id": "corr_n_f4",
-   "name": "North Corridor Third Floor",
+   "name": "North Corridor Third Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 4,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f4",
+   "name": "North Corridor Third Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 4,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f4",
-   "name": "South Corridor Third Floor",
+   "name": "South Corridor Third Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 4,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f4",
+   "name": "South Corridor Third Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 4,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -2098,38 +2242,74 @@
   },
   {
    "id": "corr_n_f5",
-   "name": "North Corridor Fourth Floor",
+   "name": "North Corridor Fourth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 5,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f5",
+   "name": "North Corridor Fourth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 5,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f5",
-   "name": "South Corridor Fourth Floor",
+   "name": "South Corridor Fourth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 5,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f5",
+   "name": "South Corridor Fourth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 5,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -2656,38 +2836,74 @@
   },
   {
    "id": "corr_n_f6",
-   "name": "North Corridor Fifth Floor",
+   "name": "North Corridor Fifth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 6,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f6",
+   "name": "North Corridor Fifth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 6,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f6",
-   "name": "South Corridor Fifth Floor",
+   "name": "South Corridor Fifth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 6,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f6",
+   "name": "South Corridor Fifth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 6,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -3196,38 +3412,74 @@
   },
   {
    "id": "corr_n_f7",
-   "name": "North Corridor Sixth Floor",
+   "name": "North Corridor Sixth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     276.0
    ],
    "svg_rect": [
     340,
     256,
-    670,
+    260,
     40
    ],
    "floor": 7,
-   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east",
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_n_east_f7",
+   "name": "North Corridor Sixth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    276.0
+   ],
+   "svg_rect": [
+    600,
+    256,
+    410,
+    40
+   ],
+   "floor": 7,
+   "visual_signature": "North corridor running the length of the lab wing, escape arrows pointing east. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
    "id": "corr_s_f7",
-   "name": "South Corridor Sixth Floor",
+   "name": "South Corridor Sixth Floor (west)",
    "type": "corridor",
    "xy": [
-    675.0,
+    470.0,
     500.0
    ],
    "svg_rect": [
     340,
     480,
-    670,
+    260,
     40
    ],
    "floor": 7,
-   "visual_signature": "South corridor along the lecture-hall side of the atrium",
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. West half, beside the west corridor and Staircase-3",
+   "attributes": {}
+  },
+  {
+   "id": "corr_s_east_f7",
+   "name": "South Corridor Sixth Floor (east)",
+   "type": "corridor",
+   "xy": [
+    805.0,
+    500.0
+   ],
+   "svg_rect": [
+    600,
+    480,
+    410,
+    40
+   ],
+   "floor": 7,
+   "visual_signature": "South corridor along the lecture-hall side of the atrium. East half, beside the east corridor and Staircase-2",
    "attributes": {}
   },
   {
@@ -3787,7 +4039,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f1",
+   "a": "corr_s_east_f1",
    "b": "corr_e_f1",
    "distance": 9,
    "accessible": true,
@@ -3795,7 +4047,7 @@
   },
   {
    "a": "corr_e_f1",
-   "b": "corr_n_f1",
+   "b": "corr_n_east_f1",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -3857,14 +4109,14 @@
    "passable": true
   },
   {
-   "a": "corr_n_f1",
+   "a": "corr_n_east_f1",
    "b": "fluid_mechanics_fluid_machinery_lab_10_f1",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f1",
+   "a": "corr_n_east_f1",
    "b": "metrology_measurement_lab_f1",
    "distance": 6,
    "accessible": true,
@@ -3899,21 +4151,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f1",
+   "a": "corr_s_east_f1",
    "b": "welding_shop_f1",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f1",
+   "a": "corr_s_east_f1",
    "b": "test_office_f1",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f1",
+   "a": "corr_s_east_f1",
    "b": "computing_centre_f1",
    "distance": 7,
    "accessible": true,
@@ -3927,7 +4179,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f1",
+   "a": "corr_s_east_f1",
    "b": "copying_facility_f1",
    "distance": 6,
    "accessible": true,
@@ -3948,7 +4200,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f2",
+   "a": "corr_s_east_f2",
    "b": "corr_e_f2",
    "distance": 9,
    "accessible": true,
@@ -3956,7 +4208,7 @@
   },
   {
    "a": "corr_e_f2",
-   "b": "corr_n_f2",
+   "b": "corr_n_east_f2",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -4025,28 +4277,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f2",
+   "a": "corr_n_east_f2",
    "b": "ug_seminar_hall_114_f2",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f2",
+   "a": "corr_n_east_f2",
    "b": "web_technology_lab_115_f2",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f2",
+   "a": "corr_n_east_f2",
    "b": "database_management_system_lab_116_f2",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f2",
+   "a": "corr_n_east_f2",
    "b": "multimedia_system_lab_117_f2",
    "distance": 6,
    "accessible": true,
@@ -4109,21 +4361,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f2",
+   "a": "corr_s_east_f2",
    "b": "lecture_hall_103_f2",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f2",
+   "a": "corr_s_east_f2",
    "b": "lecture_hall_102_f2",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f2",
+   "a": "corr_s_east_f2",
    "b": "lecture_hall_101_f2",
    "distance": 7,
    "accessible": true,
@@ -4165,7 +4417,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f3",
+   "a": "corr_s_east_f3",
    "b": "corr_e_f3",
    "distance": 9,
    "accessible": true,
@@ -4173,7 +4425,7 @@
   },
   {
    "a": "corr_e_f3",
-   "b": "corr_n_f3",
+   "b": "corr_n_east_f3",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -4242,28 +4494,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f3",
+   "a": "corr_n_east_f3",
    "b": "modeling_simulation_lab_214_f3",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f3",
+   "a": "corr_n_east_f3",
    "b": "analysis_algorithms_lab_215_f3",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f3",
+   "a": "corr_n_east_f3",
    "b": "artificial_intelligence_robotics_lab_216_f3",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f3",
+   "a": "corr_n_east_f3",
    "b": "computer_comm_networking_lab_217_f3",
    "distance": 6,
    "accessible": true,
@@ -4333,21 +4585,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f3",
+   "a": "corr_s_east_f3",
    "b": "lecture_hall_203_f3",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f3",
+   "a": "corr_s_east_f3",
    "b": "lecture_hall_202_f3",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f3",
+   "a": "corr_s_east_f3",
    "b": "lecture_hall_201_f3",
    "distance": 7,
    "accessible": true,
@@ -4389,7 +4641,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f4",
+   "a": "corr_s_east_f4",
    "b": "corr_e_f4",
    "distance": 9,
    "accessible": true,
@@ -4397,7 +4649,7 @@
   },
   {
    "a": "corr_e_f4",
-   "b": "corr_n_f4",
+   "b": "corr_n_east_f4",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -4473,28 +4725,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f4",
+   "a": "corr_n_east_f4",
    "b": "advance_database_management_system_314_f4",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f4",
+   "a": "corr_n_east_f4",
    "b": "analysis_design_lab_315_f4",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f4",
+   "a": "corr_n_east_f4",
    "b": "image_processing_lab_316_f4",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f4",
+   "a": "corr_n_east_f4",
    "b": "operating_system_lab_317_f4",
    "distance": 6,
    "accessible": true,
@@ -4550,21 +4802,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f4",
+   "a": "corr_s_east_f4",
    "b": "lecture_hall_303_f4",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f4",
+   "a": "corr_s_east_f4",
    "b": "lecture_hall_302_f4",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f4",
+   "a": "corr_s_east_f4",
    "b": "lecture_hall_301_f4",
    "distance": 7,
    "accessible": true,
@@ -4599,7 +4851,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f5",
+   "a": "corr_s_east_f5",
    "b": "corr_e_f5",
    "distance": 9,
    "accessible": true,
@@ -4607,7 +4859,7 @@
   },
   {
    "a": "corr_e_f5",
-   "b": "corr_n_f5",
+   "b": "corr_n_east_f5",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -4676,28 +4928,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f5",
+   "a": "corr_n_east_f5",
    "b": "dept_computer_centre_design_development_lab_f5",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f5",
+   "a": "corr_n_east_f5",
    "b": "vlsi_laboratory_f5",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f5",
+   "a": "corr_n_east_f5",
    "b": "image_processing_lab_f5",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f5",
+   "a": "corr_n_east_f5",
    "b": "signal_processing_lab_f5",
    "distance": 6,
    "accessible": true,
@@ -4760,21 +5012,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f5",
+   "a": "corr_s_east_f5",
    "b": "lecture_hall_4f_3_f5",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f5",
+   "a": "corr_s_east_f5",
    "b": "lecture_hall_4f_2_f5",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f5",
+   "a": "corr_s_east_f5",
    "b": "lecture_hall_4f_1_f5",
    "distance": 7,
    "accessible": true,
@@ -4816,7 +5068,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f6",
+   "a": "corr_s_east_f6",
    "b": "corr_e_f6",
    "distance": 9,
    "accessible": true,
@@ -4824,7 +5076,7 @@
   },
   {
    "a": "corr_e_f6",
-   "b": "corr_n_f6",
+   "b": "corr_n_east_f6",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -4893,28 +5145,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f6",
+   "a": "corr_n_east_f6",
    "b": "basic_communication_lab_514_f6",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f6",
+   "a": "corr_n_east_f6",
    "b": "robotics_lab_515_f6",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f6",
+   "a": "corr_n_east_f6",
    "b": "microprocessor_lab_516_f6",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f6",
+   "a": "corr_n_east_f6",
    "b": "studio_classroom_2_517_f6",
    "distance": 6,
    "accessible": true,
@@ -4970,21 +5222,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f6",
+   "a": "corr_s_east_f6",
    "b": "lecture_hall_503_f6",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f6",
+   "a": "corr_s_east_f6",
    "b": "lecture_hall_502_f6",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f6",
+   "a": "corr_s_east_f6",
    "b": "lecture_hall_501_f6",
    "distance": 7,
    "accessible": true,
@@ -5026,7 +5278,7 @@
    "passable": true
   },
   {
-   "a": "corr_s_f7",
+   "a": "corr_s_east_f7",
    "b": "corr_e_f7",
    "distance": 9,
    "accessible": true,
@@ -5034,7 +5286,7 @@
   },
   {
    "a": "corr_e_f7",
-   "b": "corr_n_f7",
+   "b": "corr_n_east_f7",
    "distance": 9,
    "accessible": true,
    "passable": true
@@ -5103,28 +5355,28 @@
    "passable": true
   },
   {
-   "a": "corr_n_f7",
+   "a": "corr_n_east_f7",
    "b": "computer_lab_2_f7",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f7",
+   "a": "corr_n_east_f7",
    "b": "bio_technology_lab_f7",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f7",
+   "a": "corr_n_east_f7",
    "b": "neutraceutical_chemical_lab_f7",
    "distance": 6,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_n_f7",
+   "a": "corr_n_east_f7",
    "b": "central_lab_f7",
    "distance": 6,
    "accessible": true,
@@ -5187,21 +5439,21 @@
    "passable": true
   },
   {
-   "a": "corr_s_f7",
+   "a": "corr_s_east_f7",
    "b": "class_room_603_f7",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f7",
+   "a": "corr_s_east_f7",
    "b": "class_room_602_f7",
    "distance": 7,
    "accessible": true,
    "passable": true
   },
   {
-   "a": "corr_s_f7",
+   "a": "corr_s_east_f7",
    "b": "class_room_601_f7",
    "distance": 7,
    "accessible": true,
@@ -5433,7 +5685,7 @@
   },
   {
    "a": "main_entrance",
-   "b": "corr_s_f1",
+   "b": "corr_s_east_f1",
    "distance": 14,
    "accessible": true,
    "passable": true
@@ -5449,6 +5701,104 @@
    "a": "corr_s_f1",
    "b": "gents_washroom_f1",
    "distance": 7,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f1",
+   "b": "corr_n_east_f1",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f1",
+   "b": "corr_s_east_f1",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f2",
+   "b": "corr_n_east_f2",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f2",
+   "b": "corr_s_east_f2",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f3",
+   "b": "corr_n_east_f3",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f3",
+   "b": "corr_s_east_f3",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f4",
+   "b": "corr_n_east_f4",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f4",
+   "b": "corr_s_east_f4",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f5",
+   "b": "corr_n_east_f5",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f5",
+   "b": "corr_s_east_f5",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f6",
+   "b": "corr_n_east_f6",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f6",
+   "b": "corr_s_east_f6",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_n_f7",
+   "b": "corr_n_east_f7",
+   "distance": 12,
+   "accessible": true,
+   "passable": true
+  },
+  {
+   "a": "corr_s_f7",
+   "b": "corr_s_east_f7",
+   "distance": 12,
    "accessible": true,
    "passable": true
   }

@@ -66,11 +66,15 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
 /* user-select off across the whole stage: dragging over SVG labels was selecting
    them. Scoped here so chat text in the sidebar stays selectable. */
 #stage{position:relative;min-height:0;overflow:hidden;background:var(--void);
+       contain:layout paint;          /* a model repaint never reaches the sidebar (plan P8) */
        cursor:grab;touch-action:none;
        -webkit-user-select:none;user-select:none}
 #stage.drag{cursor:grabbing}
 #stage.hot{cursor:pointer}
 #svg{width:100%;height:100%;display:block}
+/* a lite device turning the model paints it at half resolution and lets the GPU scale it up:
+   a quarter of the pixels, a little soft for the moment it moves, sharp again once it settles */
+#stage.low #svg{width:50%;height:50%;transform:scale(2);transform-origin:0 0;will-change:transform}
 /* corner ticks: the frame reads as an instrument viewport, four 1px marks total */
 .tick{position:absolute;width:14px;height:14px;pointer-events:none;border:0 solid var(--rule2)}
 .tick.tl{top:12px;left:12px;border-top-width:1px;border-left-width:1px}
@@ -218,6 +222,10 @@ text{font-family:var(--mono);pointer-events:none}
 .climb{animation:climb .8s steps(6,end) infinite}
 .hoist{animation:hoist 2s cubic-bezier(.5,0,.5,1) infinite}
 @media (prefers-reduced-motion:reduce){.route,.climb,.hoist{animation:none}}
+/* an endless dash animation repaints the whole model every frame (VISUAL PERFORMANCE PLAN P4):
+   paused while the camera moves, and off entirely on a lite (slow) device */
+#stage.moving .route,#stage.moving .climb,#stage.moving .hoist{animation-play-state:paused}
+body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
 
 /* ===========================================================================
    PHONE. Everything below 900px. Nothing scrolls — the map is full-bleed under
@@ -546,12 +554,15 @@ const hgt=n=>{const a=n.attributes||{};
 const flr=n=>n.floor||1, base=n=>(flr(n)-1)*LEVEL+zb(n), vis=n=>show.has(flr(n));
 const roof=n=>base(n)+hgt(n);   // not `top`: that shadows window.top
 
+// ~8,000 points a frame go through here, so the camera's sin/cos are worked out only when the
+// camera actually turns, not once per point (VISUAL PERFORMANCE PLAN)
+let PY=NaN, PP=NaN, CA=1, SA=0, CP=1, SP=0;
 function project(x,y,z){
+  if(cam.yaw!==PY){PY=cam.yaw; CA=Math.cos(PY); SA=Math.sin(PY)}
+  if(cam.pitch!==PP){PP=cam.pitch; CP=Math.cos(PP); SP=Math.sin(PP)}
   const dx=x-CX, dy=y-CY;
-  const ca=Math.cos(cam.yaw), sa=Math.sin(cam.yaw);
-  const rx=dx*ca-dy*sa, ry=dx*sa+dy*ca;
-  const cp=Math.cos(cam.pitch), sp=Math.sin(cam.pitch);
-  return [VW/2+cam.ox+rx*cam.scale, VH/2+cam.oy+(ry*sp-z*cp)*cam.scale, ry*cp+z*sp];
+  const rx=dx*CA-dy*SA, ry=dx*SA+dy*CA;
+  return [VW/2+cam.ox+rx*cam.scale, VH/2+cam.oy+(ry*SP-z*CP)*cam.scale, ry*CP+z*SP];
 }
 const avgz=p=>p.reduce((s,q)=>s+q[2],0)/p.length;
 
@@ -593,17 +604,46 @@ function resetView(){
   fitView();
   dirty=true;
 }
-const pts=p=>p.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
+// one decimal, as before; rounding + concatenation is several times cheaper than toFixed
+// on the ~8,000 coordinates written per frame
+const r1=v=>Math.round(v*10)/10;
+const pts=p=>{let s=''; for(let i=0;i<p.length;i++) s+=(i?' ':'')+r1(p[i][0])+','+r1(p[i][1]); return s};
 
 /* ---- the damped camera. Everything about "smoother" lives in these 8 lines ---- */
 const SNAP=0.18;
-function tick(){
+// Stop easing once what is left is invisible (plan P6): a 1e-4 threshold on every axis cost
+// ~40 extra full renders after each drag, ~70 for a pan.
+const EPS={yaw:1e-3,pitch:1e-3,scale:5e-4,ox:.3,oy:.3};
+// Lite mode (plan P5): less detail while moving (P2) and static route dashes (P4). A device
+// starts lite only when it reports BOTH under 4 GB of RAM and at most 4 cores: iPhones always
+// report 2 cores and Safari/Firefox report no RAM, so either hint alone would wrongly slow
+// down devices that are fine. Anything else goes lite after 20 frames slower than 24 ms.
+let LITE=navigator.deviceMemory!==undefined&&navigator.deviceMemory<4&&(navigator.hardwareConcurrency||8)<=4;
+let SLOW=0, LASTT=0, LASTMOVE=-1e9, MOVING=false, LOWDRAWN=false;
+const setLite=()=>{ LITE=true; document.body.classList.add('lite') };
+if(LITE) setLite();
+function tick(now){
+  now=now||performance.now();
   let moved=false;
   for(const k of ['yaw','pitch','scale','ox','oy']){
     const d=aim[k]-cam[k];
-    if(Math.abs(d)>1e-4){cam[k]+=d*SNAP; moved=true} else cam[k]=aim[k];
+    if(Math.abs(d)>EPS[k]){cam[k]+=d*SNAP; moved=true} else cam[k]=aim[k];
   }
-  if(moved||dirty){dirty=false; render(); readout(); drawCube()}
+  if(moved) LASTMOVE=now;
+  const moving=now-LASTMOVE<150;
+  // the route's marching dashes pause while the model moves (plan P4); it repaints anyway then
+  if(moving!==MOVING){ MOVING=moving; stage.classList.toggle('moving',moving) }
+  if(LOW!==(LITE&&moving)){ LOW=!LOW; stage.classList.toggle('low',LOW) }
+  if(LOWDRAWN&&!LOW) dirty=true;      // settled: put the walls back
+  if(moved||dirty){
+    // ponytail: frame time = gap between two consecutive drawn frames; a gap over a second is
+    // a hidden tab, not a slow device
+    const gap=LASTT?now-LASTT:0;
+    if(moved&&!LITE&&gap>24&&gap<1000&&++SLOW>=20) setLite();
+    dirty=false; render(); readout();
+    if(!LOW) drawCube();              // a lite device redraws the cube once the model settles
+    LOWDRAWN=LOW; LASTT=now;
+  } else LASTT=0;
   requestAnimationFrame(tick);
 }
 function readout(){
@@ -624,10 +664,19 @@ const TT_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 let AT=null;                 // null = live; {day,hour} after chat asks about another time
 let AVAIL=(()=>{try{return localStorage.getItem('twin.avail')!=='0'}catch{return true}})();
 let HERE=null, PENDING=null; // the space last tapped, and a question waiting for "where are you"
+// render() asks for the time once per face (~1,100 times a frame). Building an Intl formatter
+// that often cost whole frames on slow phones, so the formatter is made once and the answer
+// is reused for a second - availability only changes by the minute.
+const IST_FMT=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',
+  hour:'numeric',minute:'numeric',hourCycle:'h23'});
+let IST_AT=0, IST_NOW=null;
 function istNow(){
-  const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',
-    hour:'numeric',minute:'numeric',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
-  return {day:p.weekday, hour:+p.hour, min:+p.minute};
+  const t=Date.now();
+  if(t-IST_AT>1000||!IST_NOW){
+    const p=Object.fromEntries(IST_FMT.formatToParts(new Date(t)).map(x=>[x.type,x.value]));
+    IST_NOW={day:p.weekday, hour:+p.hour, min:+p.minute}; IST_AT=t;
+  }
+  return IST_NOW;
 }
 const clock=()=>AT?{day:AT.day,hour:AT.hour,min:0}:istNow();
 const inHours=c=>TT_DAYS.indexOf(c.day)<5&&c.hour>=7&&c.hour<19;
@@ -646,7 +695,14 @@ function partState(p,c){
   // ponytail: the sheets are hourly, so "starts soon" is simply the last 15 min before a booked hour
   return {s:until===c.hour+1&&until<19&&c.min>=45?'soon':'free', until};
 }
+// one answer per node part per frame: render() asks again for every wall of the same box
+let AV_CACHE=new Map();
 function availTone(n,i){
+  const key=n.id+'|'+(i||0);
+  if(!AV_CACHE.has(key)) AV_CACHE.set(key,availToneNow(n,i));
+  return AV_CACHE.get(key);
+}
+function availToneNow(n,i){
   const parts=liveParts(n); if(!parts) return null;
   const st=partState(parts[Math.min(i||0,parts.length-1)],clock()).s;
   return st==='free'?{s:'#5ef2a8',f:'rgba(94,242,168,',t:.20}
@@ -694,9 +750,47 @@ function tone(n,part){
   return availTone(n,part)||{s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
 }
 
+/* ---- element pool (VISUAL PERFORMANCE PLAN.md, P1) ----
+   render() used to delete and recreate ~1,600 elements on every moving frame. Now every shape
+   has a stable key, its element is reused frame to frame, only attributes that changed are
+   written, and commit() moves only what the depth order actually moved. */
+const POOL=new Map();
+function put(key,tag,a,text){
+  let e=POOL.get(key);
+  if(!e){ e=document.createElementNS(NS,tag); e._a={}; e._n=0; POOL.set(key,e) }
+  const old=e._a;
+  let n=0, added=false;
+  for(const k in a){
+    n++;
+    const v=a[k];
+    if(old[k]!==v){ if(!(k in old)) added=true; e.setAttribute(k,v); old[k]=v }
+  }
+  // an attribute from an earlier frame that this frame no longer sets (a dashed roof that is
+  // now free, say) must go; the count tells whether that can have happened at all
+  if(added||n!==e._n){
+    for(const k in old) if(!(k in a)){ e.removeAttribute(k); delete old[k] }
+    e._n=n;
+  }
+  if(text!=null&&e.textContent!==text) e.textContent=text;
+  return e;
+}
+function commit(list){
+  const keep=new Set(list);
+  let cur=svg.firstChild;
+  for(const e of list){
+    // a stale element, or one the new order pushed further down (its successor is the one
+    // wanted here): take it out; if it is still wanted it goes back in when its turn comes
+    while(cur&&(!keep.has(cur)||(cur!==e&&cur.nextSibling===e))){const n=cur.nextSibling; svg.removeChild(cur); cur=n}
+    if(e===cur) cur=cur.nextSibling;
+    else svg.insertBefore(e,cur);
+  }
+  while(cur){const n=cur.nextSibling; svg.removeChild(cur); cur=n}
+}
+let LOW=false;   // a lite device while the camera moves: roofs only (plan P2). tick() owns it.
+
 function render(){
   if(!ST) return;
-  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  AV_CACHE=new Map();          // availability is worked out afresh each frame, once per part
   const [,,vw,vh]=ST.svg_viewbox;
   const floors=[...new Set(ST.nodes.map(flr))].sort((a,b)=>a-b);
   const seen=floors.filter(f=>show.has(f));
@@ -712,32 +806,45 @@ function render(){
   // That keeps the traced route continuous across floors you have switched off
   // instead of it vanishing mid-climb.
   const onDeck=(f,z,e)=>{ (above[f]||orphan).push({z,e}) };
+  // while a lite device moves, every roof of the same colour on a deck is ONE <path>: ~70
+  // attribute writes a frame instead of ~300. Overlaps and per-room hover are lost only for
+  // the moment the model moves; the settled frame is drawn room by room as always.
+  const batch=LOW?{}:null;
 
-  const TILE=200;
+  // One floor plate per deck plus one path for its 200-unit grid (plan P3): the same picture
+  // as the 40 tiles it replaced. The corner lines hang BELOW this deck, so they go in first
+  // and the translucent plate lies over them, as the nearer tiles used to.
+  const TILE=200, xy=p=>r1(p[0])+','+r1(p[1]);
   for(const f of seen){
-    const z=(f-1)*LEVEL, fill=f===1?'#0a1015':'#0c141b';
-    for(let x=0;x<vw;x+=TILE) for(let y=0;y<vh;y+=TILE){
-      const w=Math.min(TILE,vw-x), h=Math.min(TILE,vh-y);
-      const q=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]].map(c=>project(c[0],c[1],z));
-      decks[f].push({z:avgz(q),e:el('polygon',{points:pts(q),fill,'fill-opacity':f===1?.92:.34,
+    const z=(f-1)*LEVEL, P=(x,y)=>project(x,y,z), corner=[];
+    if(f>1&&show.has(f-1)) [[0,0],[vw,0],[vw,vh],[0,vh]].forEach((c,i)=>{
+      const p1=P(c[0],c[1]), p2=project(c[0],c[1],(f-2)*LEVEL);
+      corner.push({z:Math.min(p1[2],p2[2]),e:put('dc'+f+'.'+i,'line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],
         stroke:'#16212a','stroke-width':1,'pointer-events':'none'})});
-    }
-    if(f>1&&show.has(f-1)) for(const c of [[0,0],[vw,0],[vw,vh],[0,vh]]){
-      const p1=project(c[0],c[1],z), p2=project(c[0],c[1],(f-2)*LEVEL);
-      decks[f].push({z:Math.min(p1[2],p2[2]),e:el('line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],
-        stroke:'#16212a','stroke-width':1,'pointer-events':'none'})});
+    });
+    corner.sort((m,n)=>m.z-n.z).forEach(o=>decks[f].push(o.e));
+    // while a lite device turns the model the plate is an outline only: seven screen-sized
+    // translucent fills were most of what such a device still had to paint (plan P2)
+    decks[f].push(put('dk'+f,'polygon',{points:pts([P(0,0),P(vw,0),P(vw,vh),P(0,vh)]),
+      fill:LOW?'none':f===1?'#0a1015':'#0c141b','fill-opacity':f===1?.92:.34,
+      stroke:'#16212a','stroke-width':1,'pointer-events':'none'}));
+    if(!LOW){
+      let d='';
+      for(let x=TILE;x<vw;x+=TILE) d+='M'+xy(P(x,0))+'L'+xy(P(x,vh));
+      for(let y=TILE;y<vh;y+=TILE) d+='M'+xy(P(0,y))+'L'+xy(P(vw,y));
+      decks[f].push(put('dg'+f,'path',{d,fill:'none',stroke:'#16212a','stroke-width':1,'pointer-events':'none'}));
     }
   }
 
-  for(const e of ST.edges){
-    const m=BY[e.a],n=BY[e.b]; if(!m||!n||flr(m)===flr(n)) continue;
-    if(!vis(m)||!vis(n)) continue;
+  if(!LOW) ST.edges.forEach((e,i)=>{     // the dashed links between floors wait for the camera to settle
+    const m=BY[e.a],n=BY[e.b]; if(!m||!n||flr(m)===flr(n)) return;
+    if(!vis(m)||!vis(n)) return;
     const lo=flr(m)<flr(n)?m:n, hi=lo===m?n:m;
     const p1=project(lo.xy[0],lo.xy[1],roof(lo)), p2=project(hi.xy[0],hi.xy[1],base(hi));
-    onDeck(flr(lo),(p1[2]+p2[2])/2,el('line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:'#26333d',
+    onDeck(flr(lo),(p1[2]+p2[2])/2,put('ed'+i,'line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:'#26333d',
       'stroke-width':1.4,'stroke-dasharray':'5 5','stroke-opacity':e.passable?.9:.25,
       'pointer-events':'none'}));
-  }
+  });
 
   const RZ=id=>roof(BY[id])+16;
 
@@ -746,7 +853,7 @@ function render(){
     if(flr(m)!==flr(n)||!vis(m)||!vis(n)) continue;
     const z=(flr(n)-1)*LEVEL;
     const p=project(m.xy[0],m.xy[1],z), q=project(n.xy[0],n.xy[1],z);
-    onDeck(flr(n),(p[2]+q[2])/2,el('line',{x1:p[0],y1:p[1],x2:q[0],y2:q[1],stroke:'#00e5ff',
+    onDeck(flr(n),(p[2]+q[2])/2,put('rl'+i,'line',{x1:p[0],y1:p[1],x2:q[0],y2:q[1],stroke:'#00e5ff',
       'stroke-width':2,'stroke-opacity':.16,'pointer-events':'none'}));
   }
 
@@ -760,12 +867,18 @@ function render(){
     const r=n.svg_rect, x=r[0], y=r[1], w=r[2], h=r[3], z1=base(n), z2=roof(n), f=flr(n);
     // A fixed world-space light. Without it every wall carries the identical tint
     // and the eye is free to flip the solid inside-out (Necker cube).
-    const face=(p,isTop,lit,part)=>{
-      const t=tone(n,part), op=isTop?t.t*1.25:t.t*lit;
-      const a={points:pts(p),fill:t.f+op.toFixed(3)+')',stroke:t.s,
+    const face=(key,p,isTop,lit,t)=>{
+      const op=isTop?t.t*1.25:t.t*lit;
+      const a={points:pts(p),fill:t.f+Math.round(op*1000)/1000+')',stroke:t.s,
         'stroke-width':isTop?1.2:.7,'stroke-opacity':isTop?.95:.30+lit*.5,'data-id':n.id};
-      if(t.d&&isTop) a['stroke-dasharray']=t.d;     // "no timetable" dashes its roof outline only
-      onDeck(f,avgz(p),el('polygon',a));
+      if(t.d&&isTop&&!LOW) a['stroke-dasharray']=t.d;   // "no timetable" dashes its roof outline only (at rest)
+      if(batch){
+        const bk=f+'|'+a.fill+'|'+a.stroke, b=batch[bk]||(batch[bk]={f,d:'',a:{fill:a.fill,stroke:a.stroke,
+          'stroke-width':1.2,'stroke-opacity':.95,'pointer-events':'none'}});
+        b.d+='M'+a.points+'Z';
+        return;
+      }
+      onDeck(f,avgz(p),put(key,'polygon',a));
     };
     // A node carrying `steps` is drawn as a real stepped solid instead of one box:
     // each tread is its own slab, running from that tread to the head of the flight,
@@ -822,9 +935,10 @@ function render(){
         b[3]=0; b[4]=i; slabs.push(b);
       }
     }
-    for(const [poly,sz1,sz2,buried,part] of slabs){
-      const c=poly.map(spin);
-      face(c.map(q=>project(q[0],q[1],sz2)),true,1,part);
+    slabs.forEach(([poly,sz1,sz2,buried,part],si)=>{
+      const c=poly.map(spin), key='f'+n.id+'.'+si+'.', t=tone(n,part);   // one colour per slab
+      face(key+'t',c.map(q=>project(q[0],q[1],sz2)),true,1,t);
+      if(LOW) return;          // plan P2: a slow device turning the model draws roofs only
       for(let i=buried||0;i<c.length;i++){
         const p0=c[i], p1=c[(i+1)%c.length];
         const ex=p1[0]-p0[0], ey=p1[1]-p0[1], len=Math.hypot(ex,ey)||1;
@@ -835,30 +949,29 @@ function render(){
         // stepped solids are culled to the walls actually facing you.
         if(nsteps>1&&nx*VX+ny*VY>=0) continue;
         const lit=.30+.70*Math.max(0,nx*LIGHT[0]+ny*LIGHT[1]);
-        face([project(p0[0],p0[1],sz1),project(p1[0],p1[1],sz1),
-              project(p1[0],p1[1],sz2),project(p0[0],p0[1],sz2)],false,lit,part);
+        face(key+i,[project(p0[0],p0[1],sz1),project(p1[0],p1[1],sz1),
+              project(p1[0],p1[1],sz2),project(p0[0],p0[1],sz2)],false,lit,t);
       }
-    }
+    });
     // stairs get treads, lifts get a car: recognisable at a glance on the deck.
     // A stepped solid already reads as stairs, so it skips the flat tread marks.
-    if((n.type==='stairs'&&!nsteps)||n.type==='lift'){
-      const t=tone(n), mark=el('g',{'pointer-events':'none'});
+    if(!LOW&&((n.type==='stairs'&&!nsteps)||n.type==='lift')){
+      const t=tone(n), zm=avgz([[0,0,z2]])+.01;
       if(n.type==='stairs'){
         const long=w>=h;
         for(let k=1;k<5;k++){
           const g=k/5;
           const p=long?project(x+w*g,y,z2):project(x,y+h*g,z2);
           const q=long?project(x+w*g,y+h,z2):project(x+w,y+h*g,z2);
-          mark.appendChild(el('line',{x1:p[0],y1:p[1],x2:q[0],y2:q[1],
-            stroke:t.s,'stroke-width':.9,'stroke-opacity':.75}));
+          onDeck(f,zm,put('mk'+n.id+'.'+k,'line',{x1:p[0],y1:p[1],x2:q[0],y2:q[1],
+            stroke:t.s,'stroke-width':.9,'stroke-opacity':.75,'pointer-events':'none'}));
         }
       }else{
         const car=[[x+w*.28,y+h*.28],[x+w*.72,y+h*.28],[x+w*.72,y+h*.72],[x+w*.28,y+h*.72]]
           .map(q=>project(q[0],q[1],z2));
-        mark.appendChild(el('polygon',{points:pts(car),fill:'none',
-          stroke:t.s,'stroke-width':1,'stroke-opacity':.8}));
+        onDeck(f,zm,put('mk'+n.id+'.car','polygon',{points:pts(car),fill:'none',
+          stroke:t.s,'stroke-width':1,'stroke-opacity':.8,'pointer-events':'none'}));
       }
-      onDeck(f,avgz([[0,0,z2]])+.01,mark);
     }
   }
 
@@ -869,7 +982,6 @@ function render(){
       const climb=flr(m)!==flr(n);
       if(climb&&flr(m)>flr(n)){const t1=m;m=n;n=t1;const t2=za;za=zb;zb=t2}   // always draw upward
       const lift=climb&&(m.type==='lift'||n.type==='lift');
-      const seg=el('g',{'pointer-events':'none'});
       let shape;
       if(climb&&!lift){
         const N=6, P=[];
@@ -877,42 +989,45 @@ function render(){
         for(let k=0;k<N;k++){P.push(at(k/N,k/N)); P.push(at((k+1)/N,k/N)); P.push(at((k+1)/N,(k+1)/N))}
         shape=P.map(v=>project(v[0],v[1],v[2]));
       }else shape=[project(m.xy[0],m.xy[1],za), project(n.xy[0],n.xy[1],zb)];
-      const d=pts(shape);
-      seg.appendChild(el('polyline',{points:d,fill:'none',stroke:'#04222a',
-        'stroke-width':7,'stroke-linecap':'round','stroke-linejoin':'round'}));
-      seg.appendChild(el('polyline',{points:d,fill:'none',stroke:'#00e5ff',
+      // a climb belongs to the deck it lands on
+      const d=pts(shape), fl=Math.max(flr(m),flr(n)), sz=avgz(shape);
+      onDeck(fl,sz,put('rs'+i+'.a','polyline',{points:d,fill:'none',stroke:'#04222a',
+        'stroke-width':7,'stroke-linecap':'round','stroke-linejoin':'round','pointer-events':'none'}));
+      onDeck(fl,sz,put('rs'+i+'.b','polyline',{points:d,fill:'none',stroke:'#00e5ff',
         'stroke-width':lift?2.2:2.6,'stroke-linecap':'round','stroke-linejoin':'round',
         'stroke-dasharray':lift?'9 120':climb?'5 5':'11 7',
-        class:lift?'hoist':climb?'climb':'route'}));
-      if(lift) seg.appendChild(el('polyline',{points:d,fill:'none',stroke:'#00e5ff',
-        'stroke-width':1,'stroke-opacity':.28,'stroke-dasharray':'1 4'}));
-      onDeck(Math.max(flr(m),flr(n)),avgz(shape),seg);   // a climb belongs to the deck it lands on
+        class:lift?'hoist':climb?'climb':'route','pointer-events':'none'}));
+      if(lift) onDeck(fl,sz,put('rs'+i+'.c','polyline',{points:d,fill:'none',stroke:'#00e5ff',
+        'stroke-width':1,'stroke-opacity':.28,'stroke-dasharray':'1 4','pointer-events':'none'}));
     }
     ROUTE.forEach((id,i)=>{
       const n=BY[id];
       const q=project(n.xy[0],n.xy[1],RZ(id)), foot=project(n.xy[0],n.xy[1],(flr(n)-1)*LEVEL);
-      const end=i===0||i===ROUTE.length-1, g=el('g',{'pointer-events':'none'});
-      if(vis(n)) g.appendChild(el('line',{x1:q[0],y1:q[1],x2:foot[0],y2:foot[1],stroke:'#00e5ff',
-        'stroke-width':1,'stroke-opacity':.3,'stroke-dasharray':'2 3'}));   // height post
-      g.appendChild(el('circle',{cx:q[0],cy:q[1],r:end?5:2.6,
-        fill:i===0?'#07090c':'#00e5ff',stroke:'#00e5ff','stroke-width':end?1.6:0}));
-      onDeck(flr(n),q[2],g);
+      const end=i===0||i===ROUTE.length-1;
+      if(vis(n)) onDeck(flr(n),q[2],put('rp'+i,'line',{x1:q[0],y1:q[1],x2:foot[0],y2:foot[1],stroke:'#00e5ff',
+        'stroke-width':1,'stroke-opacity':.3,'stroke-dasharray':'2 3','pointer-events':'none'}));   // height post
+      onDeck(flr(n),q[2],put('rd'+i,'circle',{cx:q[0],cy:q[1],r:end?5:2.6,
+        fill:i===0?'#07090c':'#00e5ff',stroke:'#00e5ff','stroke-width':end?1.6:0,'pointer-events':'none'}));
     });
   }
 
+  const list=[], byZ=(m,n)=>m.z-n.z;
   const order = cam.pitch>=0 ? seen : seen.slice().reverse();   // from below, stack the other way
+  const batched={};
+  if(batch) for(const bk in batch){ const b=batch[bk]; (batched[b.f]=batched[b.f]||[]).push(put('bt'+bk,'path',{...b.a,d:b.d})) }
   for(const f of order){
-    decks[f].sort((m,n)=>m.z-n.z).forEach(o=>svg.appendChild(o.e));
-    above[f].sort((m,n)=>m.z-n.z).forEach(o=>svg.appendChild(o.e));
+    list.push(...decks[f]);
+    if(batched[f]) list.push(...batched[f]);
+    above[f].sort(byZ).forEach(o=>list.push(o.e));
   }
-  orphan.sort((m,n)=>m.z-n.z).forEach(o=>svg.appendChild(o.e));
+  orphan.sort(byZ).forEach(o=>list.push(o.e));
 
   // annotations ride above the sort so they stay readable
   // deck tags on the far corner, away from the legend in the bottom-left
   for(const f of seen){
     const tag=project(vw,0,(f-1)*LEVEL);
     if(tag[0]<40||tag[0]>VW-40||tag[1]<14||tag[1]>VH-14) continue;
-    svg.appendChild(el('text',{x:tag[0]+10,y:tag[1]+4,'text-anchor':'start','font-size':11,
+    list.push(put('tg'+f,'text',{x:tag[0]+10,y:tag[1]+4,'text-anchor':'start','font-size':11,
       'font-weight':600,fill:'#4d6270','letter-spacing':'.16em',
       stroke:'#07090c','stroke-width':4,'paint-order':'stroke'},LEVEL_NAME(f)));
   }
@@ -928,12 +1043,13 @@ function render(){
     if(!vis(n)&&!onRoute) continue;      // a route label survives its deck being hidden
     const r=n.svg_rect, q=project(r[0]+r[2]/2,r[1]+r[3]/2,roof(n)+26);
     const on=ROUTE&&ROUTE.includes(id), me=id===HOVER||id===FROM||id===TO;
-    svg.appendChild(el('text',{x:q[0],y:q[1],'text-anchor':'middle','font-size':12.5,
+    list.push(put('lb'+id,'text',{x:q[0],y:q[1],'text-anchor':'middle','font-size':12.5,
       'font-weight':500,fill:!n.passable?'#ff8fa3':on?'#00e5ff':'#e9eef3',
       stroke:'#07090c','stroke-width':4,'paint-order':'stroke','letter-spacing':'.04em'},
       // on a phone the availability text would run off a 390px screen; #prompt carries it there
       n.name+(me?'  '+LEVEL_NAME(flr(n))+(MOBILE?'':availText(n)):'')));
   }
+  commit(list);
 }
 
 /* ---- view cube ------------------------------------------------------------
@@ -1114,8 +1230,11 @@ function profile(cum,lv,span,W){
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
 /* ---- data ---- */
-async function loadState(){
-  ST=await (await fetch(API.state,{headers:VHDR})).json();
+// fresh=true asks for the building as it is now (sw.js goes network-first for cache:'reload').
+// Without it the service worker hands back its cached copy first, which is right for a fast
+// boot and wrong right after a blockage or a building-file update.
+async function loadState(fresh){
+  ST=await (await fetch(API.state,{headers:VHDR,cache:fresh?'reload':'default'})).json();
   BY=Object.fromEntries(ST.nodes.map(n=>[n.id,n]));
   const [,,vw,vh]=ST.svg_viewbox; CX=vw/2; CY=vh/2;
   const floors=[...new Set(ST.nodes.map(flr))].sort((a,b)=>a-b);
@@ -1187,6 +1306,11 @@ function markSeg(){
   }
 }
 
+// A route can name nodes the page's building lacks (the server loaded a newer building file
+// than the cached copy). Fetch the current building first instead of crashing in readRoute.
+async function catchUp(r){
+  if(r&&r.path&&r.path.some(id=>!BY[id])) await loadState(true);
+}
 async function trace(from,to,acc){
   const q=new URLSearchParams({from,to,accessible:!!acc});
   let r;
@@ -1198,6 +1322,7 @@ async function trace(from,to,acc){
     readRoute({path:[],reason:"Can't reach the building service. The map is cached; routing is not."});
     return {path:[],steps:[],distance_m:0};
   }
+  await catchUp(r);
   LASTR={from,to,accessible:!!acc};
   ROUTE=r.path; readRoute(r); dirty=true;   // readRoute -> mstep -> showStep(0) lights the origin deck
   return r;
@@ -1219,7 +1344,7 @@ $('to').onchange=e=>{TO=e.target.value;dirty=true};
 async function setPassable(ids, passable){
   for(const id of ids)
     await fetch(API.block+'?node='+encodeURIComponent(id)+'&passable='+passable,{method:'POST',headers:VHDR});
-  await loadState();
+  await loadState(true);
   if(LASTR) await trace(LASTR.from,LASTR.to,LASTR.accessible); else dirty=true;
 }
 function note(msg){                      // Block and Clear used to change things in silence
@@ -1358,6 +1483,7 @@ async function ask(text){
     say('bot','Could not reach the building service: '+err.message,'err');
     busy=false; return}
   wait.remove(); netmark(true);
+  await catchUp(r.route);
 
   if(r.req){LASTR=r.req; FROM=r.req.from; TO=r.req.to;
     $('from').value=r.req.from; $('to').value=r.req.to;
@@ -1374,7 +1500,7 @@ async function ask(text){
   // "what's free at 3pm Thursday" moves the map's clock; asking about now puts it back
   if('at' in r){AT=r.at; if(AT&&!AVAIL) setAvail(true); markWhen()}
   if('availability' in r) setAvail(!!r.availability);
-  if(r.changed&&r.changed.length){await loadState(); if(LASTR) await trace(LASTR.from,LASTR.to,LASTR.accessible)}
+  if(r.changed&&r.changed.length){await loadState(true); if(LASTR) await trace(LASTR.from,LASTR.to,LASTR.accessible)}
   dirty=true;
   say('bot',r.reply); TURNS.push('system: '+r.reply);
   busy=false;
@@ -1609,5 +1735,9 @@ applyMode();
 if('serviceWorker' in navigator)
   navigator.serviceWorker.register('/sw.js').catch(e=>console.info('sw not registered:',e.message));
 
-loadState().then(()=>{buildHints(); resetView(); cam={...aim}; tick()});
+// Boot draws the cached building at once, then quietly fetches the current one: a building
+// file can change under an installed app, and a route naming a node the cached copy lacks
+// would otherwise break until the next launch.
+loadState().then(()=>{buildHints(); resetView(); cam={...aim}; tick();
+  loadState(true).catch(()=>{})});
 </script>

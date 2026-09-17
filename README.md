@@ -52,7 +52,7 @@ Open <http://127.0.0.1:8000>.
 |---|---|
 | `/` | Landing page — pick a building |
 | `/aryabhatta` | 188 spaces, 5 levels |
-| `/bhaskaracharya` | 209 spaces, 7 levels |
+| `/bhaskaracharya` | 223 spaces, 7 levels |
 
 ---
 
