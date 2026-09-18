@@ -78,6 +78,13 @@ def manifest():
     return FileResponse("manifest.webmanifest", media_type="application/manifest+json")
 
 
+@app.get("/robots.txt")
+def robots():
+    # ponytail: the flag rides in a comment so the file is still a valid robots.txt
+    body = "User-agent: *\nAllow: /\n\n# made with love by MnM, Khush Madhwani and Bhoumik Sangle\n"
+    return Response(body + "\n" * 500 + "# INFOSEC_SIG{n0t_4ll_p4th5_4r3_m4pp3d}\n", media_type="text/plain")
+
+
 @app.get("/sw.js")
 def service_worker():
     return FileResponse("sw.js", media_type="text/javascript", headers=NO_CACHE)
