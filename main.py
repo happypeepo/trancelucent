@@ -106,6 +106,7 @@ class ChatIn(BaseModel):
 BUILDINGS = []   # every mounted building, so the page can offer a switcher without guessing
 
 # The semester timetable, loaded once like the building files. Both buildings share it.
+LAB = re.compile(r"\blab(s|oratory|oratories)?\b", re.I)   # ponytail: keyword only, add a model field if "computer room" etc. must count
 TT = timetable.load("fixtures/timetable.json") if os.path.exists("fixtures/timetable.json") else None
 # ponytail: a fixed +05:30 - India has no DST, and zoneinfo would need the tzdata package on Windows
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -186,8 +187,9 @@ def mount_building(prefix, w):
                     f"{LETTER[other]} building?")
         return f" I can't place {code} on the model yet." if there else ""
 
-    def free_room(c, origin, visitor):
-        """The single nearest free room by walking distance; networkx does the distances."""
+    def free_room(c, origin, visitor, lab=False):
+        """The single nearest free room by walking distance; networkx does the distances.
+        lab=True keeps only rooms whose name on the model says Lab or Laboratory."""
         day, h, m, live = when(c.day, c.time)
         out = {"at": None if live else {"day": day, "hour": h}}
         if not origin:
@@ -202,11 +204,17 @@ def mount_building(prefix, w):
         for part in TT.free(building, day, h, c.skip_rooms):
             node = TT.rooms[part]["node"]
             if not node:
-                unplaced.append(part)
+                if not lab:   # an unplaced room has no name, so we can't tell if it is a lab
+                    unplaced.append(part)
+                continue
+            if lab and not LAB.search(w.nodes[node]["name"]):
                 continue
             r = w.route(origin, node, visitor=visitor)
             if r["path"]:
                 ranked.append((r["distance_m"], part, node, r))
+        if not ranked and lab:
+            out["reply"] = lead + f"By the timetable no lab in {TITLE[building]} is free{at}."
+            return out
         if not ranked:
             out["reply"] = lead + (
                 "Nothing I can show on the model is free" + at + ", but by the timetable "
@@ -316,7 +324,12 @@ def mount_building(prefix, w):
             out["reply"] = "The timetable is not loaded on this server."
 
         elif c.action == "free_room":
-            out.update(free_room(c, node_of(c.from_id) or here, visitor))
+            # "empty lab" is read from the visitor's own words, not the model. A follow-up
+            # ("B115A isn't free") carries skip_rooms, so it keeps the lab ask from the recent turns.
+            said = [body.message] + ([l for l in body.history.splitlines() if l.startswith("visitor: ")]
+                                     if c.skip_rooms else [])
+            lab = any(LAB.search(s) for s in said)
+            out.update(free_room(c, node_of(c.from_id) or here, visitor, lab))
 
         elif c.action == "find_prof":
             out.update(find_prof(c))
