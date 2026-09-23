@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, Header, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
@@ -78,30 +78,11 @@ def manifest():
     return FileResponse("manifest.webmanifest", media_type="application/manifest+json")
 
 
-# scheme+host from the proxy headers fly sets, so robots/sitemap emit absolute URLs
-# for the live domain without hardcoding it - works on *.fly.dev and any custom domain
-def site_base(request: Request):
-    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
-    return f"{proto}://{request.headers['host']}"
-
-
 @app.get("/robots.txt")
-def robots(request: Request):
-    body = ("User-agent: *\nAllow: /\n\n"
-            f"Sitemap: {site_base(request)}/sitemap.xml\n\n"
-            "# made with love by MnM, Khush Madhwani and Bhoumik Sangle\n")
-    return Response(body, media_type="text/plain")
-
-
-@app.get("/sitemap.xml")
-def sitemap(request: Request):
-    base = site_base(request)
-    paths = ["/"] + [b["prefix"] for b in BUILDINGS]
-    urls = "".join(f"<url><loc>{base}{p}</loc><changefreq>weekly</changefreq></url>" for p in paths)
-    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
-           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-           f"{urls}</urlset>")
-    return Response(xml, media_type="application/xml")
+def robots():
+    # ponytail: the flag rides in a comment so the file is still a valid robots.txt
+    body = "User-agent: *\nAllow: /\n\n# made with love by MnM, Khush Madhwani and Bhoumik Sangle\n"
+    return Response(body + "\n" * 500 + "# INFOSEC_SIG{n0t_4ll_p4th5_4r3_m4pp3d}\n", media_type="text/plain")
 
 
 @app.get("/sw.js")
