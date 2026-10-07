@@ -244,6 +244,16 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
      appears or disappears, so the toggles and the overlay never sit under it. */
   :root{--bar:92px}
   html,body{height:100dvh;overflow:hidden;overscroll-behavior:none}
+  /* iOS home-screen app: black-translucent + viewport-fit=cover draw the page under the
+     clock, where iOS blurs whatever sits there (the header, cube and readout), and its
+     100dvh can disagree with the real screen, leaving a blank strip at the bottom. So the
+     page is pinned to the same box #mbar is fixed to, whatever dvh says, and the clock's
+     band is padded off the top. The inset is 0 in a browser tab: a no-op there. */
+  /* iOS's blur fades out over a few more px past the clock, so a notched screen gets 16px of
+     extra clearance. ponytail: 16px is from Khush's iPhone (title and buttons still blurred at
+     +0); raise it if a taller notch shows blur. min(inset*1000, 16px) is 0 with no inset. */
+  :root{--top:calc(env(safe-area-inset-top) + min(env(safe-area-inset-top) * 1000, 16px))}
+  body{position:fixed;inset:0;height:auto;padding-top:var(--top)}
   body{grid-template-rows:auto 1fr}
 
   header{height:44px;padding:0 14px;gap:10px}
@@ -285,7 +295,7 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
 
   /* the sidebar, now an overlay. #ctrl and #read are desktop-only affordances:
      origin comes from the chat or from tapping a space on the model. */
-  aside{position:fixed;left:0;right:0;top:44px;bottom:var(--bar);z-index:20;
+  aside{position:fixed;left:0;right:0;top:calc(44px + var(--top));bottom:var(--bar);z-index:20;
         border-left:0;border-top:1px solid var(--rule);background:var(--plate);
         transform:translateY(8px);opacity:0;visibility:hidden;
         transition:opacity .16s ease,transform .16s ease,visibility .16s}
@@ -494,7 +504,7 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
       <button id="mnext" aria-label="Next step">&#9654;</button>
     </div>
   </div>
-  <button id="mask">Ask</button>
+  <button id="mask">Chat</button>
   <div class="credit mob">made with ❤️ by MnM</div>
 </div>
 
@@ -1734,7 +1744,7 @@ addEventListener('orientationchange',applyMode);
 // called from trace() and ask() with what actually happened. The events are a hint.
 let NETOK=true;
 const OFFLINE=()=>!navigator.onLine||!NETOK;
-const MASKTEXT=()=>OFFLINE()?'Offline · map only':'Ask';
+const MASKTEXT=()=>OFFLINE()?'Offline · map only':'Chat';
 function netmark(ok){
   if(ok!==undefined) NETOK=ok;
   document.body.classList.toggle('offline',OFFLINE());
