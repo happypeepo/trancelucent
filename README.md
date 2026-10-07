@@ -148,7 +148,7 @@ GET  /                  building picker
 GET  /health            service health check
 GET  /<bldg>/state      GET  /<bldg>/route      POST /<bldg>/block      POST /<bldg>/chat
 GET  /buildings         what is mounted, so the frontend never has to guess
-GET  /chat-token        CometChat app id + region       POST /chat-token   a login pass for this visitor
+POST /chat-token        CometChat app id, region and a login pass for this visitor (POST only)
 ```
 
 ### The data model

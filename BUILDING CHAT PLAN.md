@@ -43,8 +43,10 @@ leaves the server, and the Auth Key isn't used by the app at all.
   `{uid, name, withAuthToken: true}`, which creates the user and returns the token in one call
   (a new visitor, the common case). If the user already exists, `POST /v3/users/{uid}/auth_tokens`.
   CometChat lowercases uids; `randomUUID` output is already lowercase.
-- Only called when the SDK has no stored session (`getLoggedinUser()` is null), so normally once
-  per browser.
+- **POST only** (Khush, 2026-10-07): opening `/chat-token` in a browser shows nothing, not even
+  the app id. The page POSTs once per chat-tab open and gets `{app_id, region, token}`; a stored
+  SDK session is reused and the pass goes unspent. CometChat keeps a user's newest 100 passes and
+  retires older ones, so unspent passes don't pile up.
 - Rejected: Auth Key in the page. The key would sit in public page source.
 
 **D3. Credentials: env vars.** `COMETCHAT_APP_ID`, `COMETCHAT_REGION`, `COMETCHAT_REST_KEY` in

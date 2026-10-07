@@ -1651,7 +1651,8 @@ function loadSDK(){
 async function join(){
   const wait=say('bot','joining the '+RNAME+' chat…','wait',rlog);
   try{
-    const res=await fetch('/chat-token');
+    // one POST: the app id, region and a login pass for this visitor (made on first visit)
+    const res=await fetch('/chat-token',{method:'POST',headers:VHDR});
     if(res.status===503) throw new Error('Chat is not set up on this server.');
     if(!res.ok) throw new Error('Could not reach the chat: HTTP '+res.status);
     const cfg=await res.json();
@@ -1659,12 +1660,8 @@ async function join(){
     // region is the one setting that fails silently: init succeeds and nothing ever arrives
     await CometChat.init(cfg.app_id,new CometChat.AppSettingsBuilder()
       .setRegion(cfg.region).autoEstablishSocketConnection(true).build());
-    let me=await CometChat.getLoggedinUser();
-    if(!me){   // first time on this browser: the server makes our anonymous user and a pass
-      const t=await fetch('/chat-token',{method:'POST',headers:VHDR});
-      if(!t.ok) throw new Error('Could not sign in to the chat: HTTP '+t.status);
-      me=await CometChat.login((await t.json()).token);
-    }
+    // a stored session is reused; the pass is only spent when there isn't one
+    const me=await CometChat.getLoggedinUser()||await CometChat.login(cfg.token);
     const g=await CometChat.getGroup(ROOM).catch(e=>{if(e&&e.code==='ERR_GUID_NOT_FOUND') return null; throw e});
     if(!g) throw new Error('Chat is not set up for '+RNAME+' yet.');
     if(!g.getHasJoined()) await CometChat.joinGroup(ROOM,CometChat.GROUP_TYPE.PUBLIC,'');

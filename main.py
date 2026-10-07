@@ -135,17 +135,12 @@ def cometchat(path, body):
         return json.load(r)["data"]
 
 
-@app.get("/chat-token")
-def chat_config():
-    """Enough to start the SDK. The page asks for a pass only when it has no session yet."""
-    if not (CC_APP and CC_REGION and CC_KEY):
-        raise HTTPException(503, "chat is not set up on this server")
-    return {"app_id": CC_APP, "region": CC_REGION}
-
-
+# POST only, on purpose: nothing about the chat is readable by opening /chat-token in a browser
 @app.post("/chat-token")
 def chat_token(x_visitor_id: str | None = Header(None)):
-    cfg = chat_config()
+    if not (CC_APP and CC_REGION and CC_KEY):
+        raise HTTPException(503, "chat is not set up on this server")
+    cfg = {"app_id": CC_APP, "region": CC_REGION}
     uid = (x_visitor_id or "").lower()
     if not UID.fullmatch(uid):   # it goes into a REST path below, so this is the trust boundary
         raise HTTPException(400, "bad visitor id")
