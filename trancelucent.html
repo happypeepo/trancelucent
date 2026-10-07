@@ -204,6 +204,7 @@ select:hover{border-color:var(--dim)}
 .tab[data-t=ask]{order:2}
 #chat.room :is(#log,#chips,#cf),#chat:not(.room) :is(#rlog,#rf){display:none}
 .who{display:block;font:400 10px/1.4 var(--mono);letter-spacing:.08em;color:#93a7b3;margin-bottom:2px}
+.ts{display:block;margin-top:3px;text-align:right;font:400 10px/1.4 var(--mono);letter-spacing:.06em;color:var(--dim)}
 .msg.pend{opacity:.55}
 .msg{max-width:90%;padding:9px 12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
 .msg.u{align-self:flex-end;background:#12212a;border-left:2px solid var(--live);color:var(--ink)}
@@ -1514,10 +1515,28 @@ const log=$('log'), input=$('ci'), chips=$('chips');
 let HINTS=[];   // written from the loaded building, so they never name another site
 let TURNS=[], busy=false;
 
-function say(who,text,cls,into=log){
+// Message times are India time, like every other clock on this page, so a phone still set to
+// another zone agrees with the building. A room's history can be days old, so anything not
+// from today also names its day; the full date and zone sit in the tooltip.
+const TS_FMT=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',weekday:'short',day:'numeric',
+  month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const istDay=t=>Math.floor((t+19800e3)/864e5);   // India has no DST: a fixed +05:30 counts days exactly
+function stamp(at){
+  const p=Object.fromEntries(TS_FMT.formatToParts(at).map(x=>[x.type,x.value]));
+  const hm=p.hour+':'+p.minute, ago=istDay(Date.now())-istDay(at);
+  return ago<1?hm : ago<7?p.weekday+' '+hm : p.day+' '+p.month+' '+hm;
+}
+
+function say(who,text,cls,into=log,at=Date.now()){
   const d=document.createElement('div');
   d.className='msg '+(who==='you'?'u':'a')+(cls?' '+cls:'');
-  d.textContent=text; into.appendChild(d); into.scrollTop=into.scrollHeight; return d;
+  d.textContent=text;
+  if(cls!=='wait'){   // "joining…", "reading the model…" are status lines, not messages
+    const t=document.createElement('time');
+    t.className='ts'; t.dateTime=new Date(at).toISOString(); t.title=TS_FMT.format(at)+' IST';
+    t.textContent=stamp(at); d.appendChild(t);
+  }
+  into.appendChild(d); into.scrollTop=into.scrollHeight; return d;
 }
 
 async function ask(text){
@@ -1647,7 +1666,9 @@ function verdict(id){
 }
 function post(m){
   const mine=m.getSender().getUid()===ME;
-  const d=say(mine?'you':'bot',m.getText(),'',rlog);
+  // when it was sent, not when it was drawn: history can be days old. sentAt is in seconds,
+  // and the SDK leaves it 0 if the server didn't say
+  const d=say(mine?'you':'bot',m.getText(),'',rlog,m.getSentAt()*1e3||Date.now());
   if(!mine){const b=document.createElement('b'); b.className='who'; b.textContent=m.getSender().getName(); d.prepend(b);
     rlog.scrollTop=rlog.scrollHeight}   // the name line made the bubble taller after say() scrolled
   BUBBLE.set(m.getId(),d);

@@ -97,6 +97,10 @@ Splice by the `/* ---- name ---- */` banner comments, never by line number.
 - **Floors are 1-based decks: ground is 1.** Every human-facing label goes through
   `LEVEL_NAME(f)` (`1 -> 'GROUND'`, `7 -> 'LEVEL 6'`) or `LVL(f)` (`'G'`, `'L6'`). Never inline
   `'L'+f`. Backend pair: `gemini.level_name()` / `gemini.deck()`. The wire format stays the raw deck index.
+- **Chat timestamps** come from `say()`, in India time like every clock here: `stamp()` gives
+  `14:05` today, `Mon 14:05` within the week, else `6 Oct 14:05`, with the full date in the
+  tooltip. A building-chat message passes CometChat's `getSentAt()` (seconds, x1000), never the
+  time it was drawn, because the room's history can be days old. `wait` status lines get none.
 - **`dirty=true` after any state change.** `tick()` skips `render()` when the camera rests.
 - **Input writes `aim`, never `cam`** (writing `cam` stutters). Only the boot line copies `cam={...aim}`.
 - Four writers of `aim.yaw`/`aim.pitch`, kept independent: the drag (the only one the invert flags
