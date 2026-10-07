@@ -623,10 +623,21 @@ const EPS={yaw:1e-3,pitch:1e-3,scale:5e-4,ox:.3,oy:.3};
 // starts lite only when it reports BOTH under 4 GB of RAM and at most 4 cores: iPhones always
 // report 2 cores and Safari/Firefox report no RAM, so either hint alone would wrongly slow
 // down devices that are fine. Anything else goes lite after 20 frames slower than 24 ms.
+// Measured lite is not forever: showing fewer floors than it was measured on retries full
+// detail (unLite, from markSeg). Boot lite is a hardware call and stays.
 let LITE=navigator.deviceMemory!==undefined&&navigator.deviceMemory<4&&(navigator.hardwareConcurrency||8)<=4;
 let SLOW=0, LASTT=0, LASTMOVE=-1e9, MOVING=false, LOWDRAWN=false;
+let LITEAT=0;   // floors on screen when the frame-time check chose lite; 0 = boot lite, never retried
 const setLite=()=>{ LITE=true; document.body.classList.add('lite') };
 if(LITE) setLite();
+// ponytail: floor count stands in for drawing cost (floors here are alike); count faces if they stop being
+function unLite(){
+  if(!LITE||show.size>=LITEAT) return;
+  // fewer floors than lite was measured on: try full detail again. A device that still can't
+  // keep up goes lite after 20 slow frames, pinned to the smaller count, so each drop retries
+  // once and paging one-floor phone steps can't flap between the two.
+  LITE=false; SLOW=0; LITEAT=0; document.body.classList.remove('lite'); dirty=true;
+}
 function tick(now){
   now=now||performance.now();
   let moved=false;
@@ -644,7 +655,7 @@ function tick(now){
     // ponytail: frame time = gap between two consecutive drawn frames; a gap over a second is
     // a hidden tab, not a slow device
     const gap=LASTT?now-LASTT:0;
-    if(moved&&!LITE&&gap>24&&gap<1000&&++SLOW>=20) setLite();
+    if(moved&&!LITE&&gap>24&&gap<1000&&++SLOW>=20){ setLite(); LITEAT=show.size }
     dirty=false; render(); readout();
     if(!LOW) drawCube();              // a lite device redraws the cube once the model settles
     LOWDRAWN=LOW; LASTT=now;
@@ -1297,6 +1308,7 @@ function mkSeg(label,v){
   return b;
 }
 function markSeg(){
+  unLite();   // every change to the shown floors comes through here
   const floors=[...new Set(ST.nodes.map(flr))];
   for(const b of $('lvl').children)
     b.classList.toggle('on', b.dataset.v==='all' ? show.size===floors.length : show.has(+b.dataset.v));

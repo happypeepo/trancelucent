@@ -204,7 +204,8 @@ record is `VISUAL PERFORMANCE PLAN.md`.
 
 - **Lite mode** starts immediately when the browser reports under 4 GB of RAM and at most 4
   cores, and otherwise after 20 frames slower than 24 ms. A device that can keep up is never
-  downgraded.
+  downgraded. Measured lite is not permanent: show fewer floors than it was measured on and full
+  detail comes back, and if the device still can't keep up, lite returns after another 20 slow frames.
 - **While a lite device is moving** it draws batched room tops, plate outlines, no cube
   redraw, and a half-resolution SVG with static route dashes. Let go and the full picture
   comes back, so nothing is permanently lost to the cheaper path.
