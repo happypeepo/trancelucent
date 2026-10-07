@@ -71,7 +71,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:0}
 /* user-select off across the whole stage: dragging over SVG labels was selecting
    them. Scoped here so chat text in the sidebar stays selectable. */
 #stage{position:relative;min-height:0;overflow:hidden;background:var(--void);
-       contain:layout paint;          /* a model repaint never reaches the sidebar (plan P8) */
+       contain:layout paint;          /* a model repaint never reaches the sidebar */
        cursor:grab;touch-action:none;
        -webkit-user-select:none;user-select:none}
 #stage.drag{cursor:grabbing}
@@ -238,7 +238,7 @@ text{font-family:var(--mono);pointer-events:none}
 .climb{animation:climb .8s steps(6,end) infinite}
 .hoist{animation:hoist 2s cubic-bezier(.5,0,.5,1) infinite}
 @media (prefers-reduced-motion:reduce){.route,.climb,.hoist{animation:none}}
-/* an endless dash animation repaints the whole model every frame (VISUAL PERFORMANCE PLAN P4):
+/* an endless dash animation repaints the whole model every frame:
    paused while the camera moves, and off entirely on a lite (slow) device */
 #stage.moving .route,#stage.moving .climb,#stage.moving .hoist{animation-play-state:paused}
 body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
@@ -246,7 +246,7 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
 /* ===========================================================================
    PHONE. Everything below 900px. Nothing scrolls — the map is full-bleed under
    a fixed bar, and the chat is an overlay that covers the model rather than a
-   pane that competes with it for height. See .claude/PWA.md.
+   pane that competes with it for height.
    Desktop is reached by none of this.
 =========================================================================== */
 #mbar{display:none}
@@ -261,8 +261,8 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
      page is pinned to the same box #mbar is fixed to, whatever dvh says, and the clock's
      band is padded off the top. The inset is 0 in a browser tab: a no-op there. */
   /* iOS's blur fades out over a few more px past the clock, so a notched screen gets 16px of
-     extra clearance. ponytail: 16px is from Khush's iPhone (title and buttons still blurred at
-     +0); raise it if a taller notch shows blur. min(inset*1000, 16px) is 0 with no inset. */
+     extra clearance. ponytail: 16px cleared the blur on a notched iPhone (+0 left the title
+     blurred); raise it if a taller notch shows blur. min(inset*1000, 16px) is 0 with no inset. */
   :root{--top:calc(env(safe-area-inset-top) + min(env(safe-area-inset-top) * 1000, 16px))}
   body{position:fixed;inset:0;height:auto;padding-top:var(--top)}
   body{grid-template-rows:auto 1fr}
@@ -546,7 +546,7 @@ let LEVEL=340;                 // deck spacing, set from the floor count in load
 // 390px-wide phone and throws away two thirds of the viewport, so a narrow portrait
 // viewport gets a portrait frame instead. Swap the frame's aspect, not the projection —
 // every consumer (project, fitView, the label culling at VW-40/VH-14) reads these two.
-// applyMode() owns them; they are never set anywhere else. See .claude/PWA.md.
+// applyMode() owns them; they are never set anywhere else.
 let VW=1400, VH=780;
 const ISO={yaw:-0.50,pitch:0.90,scale:0.82,ox:0,oy:104};   // the home view; the cube covers the rest
 
@@ -586,7 +586,7 @@ const flr=n=>n.floor||1, base=n=>(flr(n)-1)*LEVEL+zb(n), vis=n=>show.has(flr(n))
 const roof=n=>base(n)+hgt(n);   // not `top`: that shadows window.top
 
 // ~8,000 points a frame go through here, so the camera's sin/cos are worked out only when the
-// camera actually turns, not once per point (VISUAL PERFORMANCE PLAN)
+// camera actually turns, not once per point
 let PY=NaN, PP=NaN, CA=1, SA=0, CP=1, SP=0;
 function project(x,y,z){
   if(cam.yaw!==PY){PY=cam.yaw; CA=Math.cos(PY); SA=Math.sin(PY)}
@@ -642,10 +642,10 @@ const pts=p=>{let s=''; for(let i=0;i<p.length;i++) s+=(i?' ':'')+r1(p[i][0])+',
 
 /* ---- the damped camera. Everything about "smoother" lives in these 8 lines ---- */
 const SNAP=0.18;
-// Stop easing once what is left is invisible (plan P6): a 1e-4 threshold on every axis cost
+// Stop easing once what is left is invisible: a 1e-4 threshold on every axis cost
 // ~40 extra full renders after each drag, ~70 for a pan.
 const EPS={yaw:1e-3,pitch:1e-3,scale:5e-4,ox:.3,oy:.3};
-// Lite mode (plan P5): less detail while moving (P2) and static route dashes (P4). A device
+// Lite mode: less detail while moving and static route dashes. A device
 // starts lite only when it reports BOTH under 4 GB of RAM and at most 4 cores: iPhones always
 // report 2 cores and Safari/Firefox report no RAM, so either hint alone would wrongly slow
 // down devices that are fine. Anything else goes lite after 20 frames slower than 24 ms.
@@ -673,7 +673,7 @@ function tick(now){
   }
   if(moved) LASTMOVE=now;
   const moving=now-LASTMOVE<150;
-  // the route's marching dashes pause while the model moves (plan P4); it repaints anyway then
+  // the route's marching dashes pause while the model moves; it repaints anyway then
   if(moving!==MOVING){ MOVING=moving; stage.classList.toggle('moving',moving) }
   if(LOW!==(LITE&&moving)){ LOW=!LOW; stage.classList.toggle('low',LOW) }
   if(LOWDRAWN&&!LOW) dirty=true;      // settled: put the walls back
@@ -699,8 +699,7 @@ function readout(){
 // Room availability from the semester timetable. /state carries each room's weekly busy
 // spans (ST.timetable.nodes[id] = parts, each {code, own, busy:[[day,from,to,what,profs,makeup]]});
 // the page works out the hour itself, so colours need no request and still work offline.
-// Hours are India time whatever zone the device is in. Palette P1 and every rule here:
-// timetables/TIMETABLE INCORPORATION PLAN.md, section 7. Free is only ever claimed for a
+// Hours are India time whatever zone the device is in. Free is only ever claimed for a
 // room with its own sheet (part.own); anything else is in use or "no timetable".
 const TT_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 let AT=null;                 // null = live; {day,hour} after chat asks about another time
@@ -792,7 +791,7 @@ function tone(n,part){
   return availTone(n,part)||{s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
 }
 
-/* ---- element pool (VISUAL PERFORMANCE PLAN.md, P1) ----
+/* ---- element pool ----
    render() used to delete and recreate ~1,600 elements on every moving frame. Now every shape
    has a stable key, its element is reused frame to frame, only attributes that changed are
    written, and commit() moves only what the depth order actually moved. */
@@ -828,7 +827,7 @@ function commit(list){
   }
   while(cur){const n=cur.nextSibling; svg.removeChild(cur); cur=n}
 }
-let LOW=false;   // a lite device while the camera moves: roofs only (plan P2). tick() owns it.
+let LOW=false;   // a lite device while the camera moves: roofs only. tick() owns it.
 
 function render(){
   if(!ST) return;
@@ -853,7 +852,7 @@ function render(){
   // the moment the model moves; the settled frame is drawn room by room as always.
   const batch=LOW?{}:null;
 
-  // One floor plate per deck plus one path for its 200-unit grid (plan P3): the same picture
+  // One floor plate per deck plus one path for its 200-unit grid: the same picture
   // as the 40 tiles it replaced. The corner lines hang BELOW this deck, so they go in first
   // and the translucent plate lies over them, as the nearer tiles used to.
   const TILE=200, xy=p=>r1(p[0])+','+r1(p[1]);
@@ -866,7 +865,7 @@ function render(){
     });
     corner.sort((m,n)=>m.z-n.z).forEach(o=>decks[f].push(o.e));
     // while a lite device turns the model the plate is an outline only: seven screen-sized
-    // translucent fills were most of what such a device still had to paint (plan P2)
+    // translucent fills were most of what such a device still had to paint
     decks[f].push(put('dk'+f,'polygon',{points:pts([P(0,0),P(vw,0),P(vw,vh),P(0,vh)]),
       fill:LOW?'none':f===1?'#0a1015':'#0c141b','fill-opacity':f===1?.92:.34,
       stroke:'#16212a','stroke-width':1,'pointer-events':'none'}));
@@ -980,7 +979,7 @@ function render(){
     slabs.forEach(([poly,sz1,sz2,buried,part],si)=>{
       const c=poly.map(spin), key='f'+n.id+'.'+si+'.', t=tone(n,part);   // one colour per slab
       face(key+'t',c.map(q=>project(q[0],q[1],sz2)),true,1,t);
-      if(LOW) return;          // plan P2: a slow device turning the model draws roofs only
+      if(LOW) return;          // a slow device turning the model draws roofs only
       for(let i=buried||0;i<c.length;i++){
         const p0=c[i], p1=c[(i+1)%c.length];
         const ex=p1[0]-p0[0], ey=p1[1]-p0[1], len=Math.hypot(ex,ey)||1;
@@ -1414,7 +1413,7 @@ $('clear').onclick=async()=>{
 };
 
 /* ---- camera input ---- */
-// Reset is two-step (Khush): a space you tapped that is still waiting for its pair (PICK is
+// Reset is two-step: a space you tapped that is still waiting for its pair (PICK is
 // 'to' only then; the boot's seeded From/To never sets it) is deselected first; pressed again,
 // or with nothing tapped, it resets the view. A drawn route is still Escape's to clear.
 function deselect(){
@@ -1447,7 +1446,7 @@ let drag=null;
 // Live pointers. ONE is the original orbit path, untouched. TWO is pinch-zoom and
 // two-finger pan — the only way to reach zoom and pan on a phone, which has neither
 // a wheel nor a shift key. Additive: the single-pointer branch below is unchanged,
-// both INVX/INVY sign factors included. See .claude/PWA.md.
+// both INVX/INVY sign factors included.
 const PT=new Map(); let pinch=null;
 const span2=()=>{const [a,b]=[...PT.values()];
   return {d:Math.hypot(a.x-b.x,a.y-b.y), cx:(a.x+b.x)/2, cy:(a.y+b.y)/2}};
@@ -1732,7 +1731,7 @@ $('rf').onsubmit=async e=>{
 /* ---- phone ------------------------------------------------------------------
    Everything here is inert on desktop: MOBILE gates the DOM move and the bar is
    display:none above 900px. The step pager reads the SAME route object readRoute()
-   renders, so the two can never disagree about what step 3 is. .claude/PWA.md
+   renders, so the two can never disagree about what step 3 is.
 
    MOBILE is a LIVE flag, never a boot-time constant. A Galaxy Fold goes from a ~344px
    cover screen to a ~690px inner screen without reloading the page, and a Flip rotates
@@ -1796,7 +1795,7 @@ function showStep(i){
     // on the next deck, so paging forward carries the toggle bar up on its own — there is
     // no separate climb detection. The route line still draws across the hidden decks:
     // render() sends those to `orphan` and paints them last, which is exactly what keeps
-    // it continuous. See .claude/context.md.
+    // it continuous.
     const f=flr(node);
     if(!(show.size===1&&show.has(f))){ show=new Set([f]); markSeg() }
     // centreOn, deliberately NOT fitView: reframing onto a single deck zooms in far enough

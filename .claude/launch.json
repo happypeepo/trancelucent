@@ -1,1 +1,0 @@
-{"version":"0.0.1","configurations":[{"name":"trancelucent","runtimeExecutable":"python3","runtimeArgs":["-m","http.server","8111"],"port":8111}]}
