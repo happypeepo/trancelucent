@@ -119,7 +119,7 @@ def icon(size: int):
     return FileResponse(f"icon-{size}.png", media_type="image/png")
 
 
-# The building chat (BUILDING CHAT PLAN.md): one public CometChat group per building. The REST
+# The building chat: one public CometChat group per building. The REST
 # key never leaves this process. The page gets the public app id and region, plus a login pass
 # minted here for its own anonymous visitor id, so no visitor ever needs a CometChat account.
 CC_APP, CC_REGION, CC_KEY = (os.getenv(k, "").strip() for k in

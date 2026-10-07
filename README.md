@@ -198,8 +198,7 @@ time, and the model paints rooms **free / in use / no timetable** for the curren
 ## Building chat
 
 Everyone with `/bhaskaracharya` open shares one live chat room, and `/aryabhatta` has its own.
-It is the default tab, beside the assistant: **Building chat · Ask AI**. The full plan and every
-decision is `BUILDING CHAT PLAN.md`.
+It is the default tab, beside the assistant: **Building chat · Ask AI**.
 
 - **No accounts.** The page reuses its anonymous visitor id. On first open, `POST /chat-token`
   creates a matching CometChat user (shown as `Visitor 4F2A`) and returns a login pass. The REST
