@@ -132,7 +132,7 @@ index.html        Landing page.
 trancelucent.html  The 3D building view — projection, routing UI, chat, room availability.
 fixtures/         building.*.json — the world models; timetable.json — the semester timetable.
 photos/plans/     The escape-route boards the models were built from.
-timetables/       Raw timetable PDFs + the one-off extraction (gitignored, except the plan).
+timetables/       Raw timetable PDFs + the one-off extraction (gitignored).
 ```
 
 `world.py` and `timetable.py` are importable and fully exercisable **with no API key** —
@@ -172,8 +172,7 @@ names sign text, door colour, and a fixture.
 ## Timetables
 
 Students can ask the chat for **an empty room near them** or **where a professor is** at any
-time, and the model paints rooms **free / in use / no timetable** for the current hour. The full
-decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
+time, and the model paints rooms **free / in use / no timetable** for the current hour.
 
 - **Data.** `fixtures/timetable.json` is built once from the semester's 164 timetable sheets
   (room, class and professor sheets) by `timetables/_work/build.py`. The app never reads a PDF.
@@ -184,7 +183,7 @@ decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
 - **Free is never assumed.** A room is called free only if it has its own room sheet. Any other
   room is either in use (some sheet books it) or has no timetable.
 - **Room codes → model.** A code gets a node only when evidence pins it — a number on the escape
-  board, the floor layout, or who teaches there (see the plan's section 5). The rest are answered
+  board, the floor layout, or who teaches there. The rest are answered
   by code and floor in chat, with no map colour.
 - **Time.** India time (UTC+05:30) on both sides. `/<bldg>/state` carries each room's weekly
   busy spans, so the page works out the hour itself: colours work offline and "what's free at
@@ -199,8 +198,7 @@ decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
 The view used to rebuild about 1,600 SVG elements on every moving frame, which was smooth
 only on Apple hardware. It now keeps one element per shape and writes only the attributes
 that changed. Main-thread work per moving frame: **34.7 ms → 18.6 ms**, and **4.3 ms** in
-lite mode. The settled picture is identical — no pixel differs by more than 23/255. The full
-record is `VISUAL PERFORMANCE PLAN.md`.
+lite mode. The settled picture is identical — no pixel differs by more than 23/255.
 
 - **Lite mode** starts immediately when the browser reports under 4 GB of RAM and at most 4
   cores, and otherwise after 20 frames slower than 24 ms. A device that can keep up is never

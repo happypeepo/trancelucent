@@ -34,13 +34,13 @@ class Timetable:
                     st["profs"].setdefault(p, []).append(s)
 
     def booked(self, part, day, hour):
-        """Sessions that make `part` in use. A makeup slot does not (plan D9)."""
+        """Sessions that make `part` in use. A makeup slot does not."""
         st = self.states.get((day, hour), {"rooms": {}})
         return [s for s in st["rooms"].get(part, []) if not s["makeup"]]
 
     def status(self, part, day, hour):
         """("in_use", sessions, until) | ("free", makeup_sessions, until) | ("no_data", [], None).
-        Free only for a room with its own sheet - anything else we simply cannot see (plan D1)."""
+        Free only for a room with its own sheet - anything else we simply cannot see."""
         now = self.booked(part, day, hour)
         if now:
             end = hour + 1

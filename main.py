@@ -305,7 +305,7 @@ def mount_building(prefix, w):
     @app.get(prefix + "/state")
     def page_state(x_visitor_id: str | None = Header(None)):
         state = w.state(visitor=visitor_of(x_visitor_id))
-        if TT:   # each room's weekly busy spans; the page picks the hour itself (plan D4)
+        if TT:   # each room's weekly busy spans; the page picks the hour itself
             state["timetable"] = TT.weekly(building)
         return state
 
