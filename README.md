@@ -65,7 +65,7 @@ Open <http://127.0.0.1:8000>.
 | Geometry | networkx | Dijkstra over ~200 nodes is microseconds. Nothing here justifies PostGIS or a graph database. |
 | API | FastAPI + uvicorn | JSON with no ceremony. Route handlers contain no logic. |
 | State | One JSON file in memory | The dataset is a building. A database would add operational cost and no capability. |
-| Frontend | Vanilla JS + inline SVG | No framework, no bundler. Two self-contained files. The one CDN script is the CometChat SDK, pinned and hash-checked, and loaded only when the building chat is opened. |
+| Frontend | Vanilla JS + inline SVG | No framework, no bundler. Two self-contained files. The one CDN script is the CometChat SDK, pinned and hash-checked, and loaded only once the building chat is on screen. |
 | Building chat | CometChat | Hosted rooms, sockets and moderation. Running our own would mean a socket server, message storage and a filter. |
 | 3D | Hand-written projection | ~60 lines of matrix maths beats a 600 KB dependency for 200 boxes. One SVG element is pooled and reused per shape, so there is no virtual DOM to diff either. |
 
@@ -199,7 +199,7 @@ decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
 ## Building chat
 
 Everyone with `/bhaskaracharya` open shares one live chat room, and `/aryabhatta` has its own.
-It sits in a second tab beside the assistant: **Ask · Building chat**. The full plan and every
+It is the default tab, beside the assistant: **Building chat · Ask AI**. The full plan and every
 decision is `BUILDING CHAT PLAN.md`.
 
 - **No accounts.** The page reuses its anonymous visitor id. On first open, `POST /chat-token`
@@ -209,9 +209,13 @@ decision is `BUILDING CHAT PLAN.md`.
 - **One room per building.** Each room is a public CometChat group whose id is the URL slug, so
   `trancelucent.html` still hardcodes no building.
 - **Moderation is CometChat's,** configured in its dashboard. A blocked message is never
-  delivered to anyone else; on the sender's screen it just stays dimmed.
-- **Costs nothing until used.** The SDK, its socket and the CometChat user are created only when
-  someone opens the tab, so the 3D view's boot is unchanged.
+  delivered to anyone else; on the sender's screen it just stays dimmed. A sent message is dim
+  until CometChat approves it. CometChat's live verdict event never reached the page, so the page
+  asks for the verdict every 2 s instead; the AI rules take 2 to 10 s.
+- **Loads once it is on screen.** A desktop shows the room beside the model, so it joins when the
+  page opens; a phone joins when Chat is opened. The SDK is injected without blocking, so the 3D
+  view's first paint never waits for it. Every visitor who joins counts toward CometChat's
+  monthly active users (100 on the free plan).
 
 ---
 

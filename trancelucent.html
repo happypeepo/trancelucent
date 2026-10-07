@@ -194,19 +194,22 @@ select:hover{border-color:var(--dim)}
 #chat{flex:0 0 auto;height:232px;display:flex;flex-direction:column;overflow:hidden;
   padding:14px 18px 16px;background:var(--sunk)}
 #log,#rlog{flex:1 1 auto;overflow:auto;min-height:40px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
-/* two tabs on one panel: Ask (the assistant) and Building chat (everyone viewing this building) */
-.tab{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;
-  color:var(--dimmer);cursor:pointer}
-.tab.on{color:var(--ink)}
-.tab:hover{color:var(--live)}
+/* two tabs on one panel, drawn as buttons like Reset: Building chat (everyone viewing this
+   building) on the left, Ask (the assistant) on the right margin, the label's hairline between */
+.tab{background:none;border:1px solid var(--rule2);border-radius:2px;padding:11px 13px;font:inherit;
+  font-size:11px;letter-spacing:inherit;text-transform:inherit;color:var(--dim);cursor:pointer}
+.tab.on{color:var(--live);border-color:var(--live);background:rgba(0,229,255,.08)}
+.tab:hover{color:var(--live);border-color:var(--live)}
+.k[role=tablist]::after{order:1}
+.tab[data-t=ask]{order:2}
 #chat.room :is(#log,#chips,#cf),#chat:not(.room) :is(#rlog,#rf){display:none}
-.who{display:block;font:400 10px/1.4 var(--mono);letter-spacing:.08em;color:var(--dim);margin-bottom:2px}
+.who{display:block;font:400 10px/1.4 var(--mono);letter-spacing:.08em;color:#93a7b3;margin-bottom:2px}
 .msg.pend{opacity:.55}
 .msg{max-width:90%;padding:9px 12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
 .msg.u{align-self:flex-end;background:#12212a;border-left:2px solid var(--live);color:var(--ink)}
-.msg.a{align-self:flex-start;background:#0e141a;border-left:2px solid var(--rule2);color:#c3ced7}
+.msg.a{align-self:flex-start;background:#111a21;border-left:2px solid #3a4c58;color:#dce5ec}
 .msg.a.err{border-left-color:var(--halt);color:#ff9aad}
-.msg.wait{color:var(--dimmer);font:400 11px/1.6 var(--mono);letter-spacing:.1em;background:none;border-left-color:transparent}
+.msg.wait{color:var(--dim);font:400 11px/1.6 var(--mono);letter-spacing:.1em;background:none;border-left-color:transparent}
 #chips{flex:0 0 auto;display:flex;gap:5px;margin-bottom:9px;
   overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
 #chips::-webkit-scrollbar{height:0}
@@ -485,8 +488,8 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
 
     <div id="read"><p class="k">Route</p><p class="void">No route traced.</p></div>
 
-    <div id="chat">
-      <p class="k" role="tablist"><button type="button" class="tab on" role="tab" data-t="ask">Ask</button><button type="button" class="tab" role="tab" data-t="room">Building chat</button></p>
+    <div id="chat" class="room">
+      <p class="k" role="tablist"><button type="button" class="tab on" role="tab" aria-selected="true" data-t="room">Building chat</button><button type="button" class="tab" role="tab" aria-selected="false" data-t="ask">Ask AI</button></p>
       <div id="log"></div>
       <div id="chips"></div>
       <form id="cf" autocomplete="off">
@@ -1652,6 +1655,20 @@ function post(m){
   if(!VERDICT.has(m.getId())) VERDICT.set(m.getId(),m.getModerationStatus());
   verdict(m.getId());
 }
+// CometChat's onMessageModerated never reached this page in testing (2026-10-07), so a sent
+// message also asks for its own verdict, every 2 s for up to 30 s, stopping once it is decided.
+// The AI rules took 5 to 10 s to decide; a refresh always showed the final status.
+async function recheck(id){
+  for(let tries=0; tries<15&&VERDICT.get(id)==='pending'; tries++){
+    await new Promise(r=>setTimeout(r,2000));
+    try{ VERDICT.set(id,(await CometChat.getMessageDetails(id)).getModerationStatus()); verdict(id) }catch{}
+  }
+}
+// Building chat is the default panel everywhere. It joins once it is on screen: at page
+// open on a desktop, where the sidebar is always visible, and when Chat is opened on a phone.
+function joinIfShown(){
+  if(!JOINING&&$('chat').classList.contains('room')&&(!MOBILE||document.body.classList.contains('chat'))) JOINING=join();
+}
 function loadSDK(){
   return new Promise((ok,no)=>{const s=document.createElement('script');
     s.src=SDK; s.integrity=SRI; s.crossOrigin='anonymous'; s.onload=ok;
@@ -1685,7 +1702,7 @@ async function join(){
     const old=await new CometChat.MessagesRequestBuilder().setGUID(ROOM).setLimit(30)
       .setCategories(['message']).setTypes(['text']).build().fetchPrevious();
     wait.remove();
-    say('bot','Everyone viewing '+RNAME+' right now shares this room. Messages are public and moderated.','wait',rlog);
+    say('bot','Everyone viewing '+RNAME+' right now shares this chatroom. Messages are public and moderated.','wait',rlog);
     old.forEach(post);
     if(!old.length) say('bot','No messages yet. Say hi.','wait',rlog);
   }catch(err){
@@ -1707,7 +1724,8 @@ $('rf').onsubmit=async e=>{
   const text=rin.value.trim(); if(!text) return;
   if(!ME){say('bot','Still joining the chat, one moment.','wait',rlog); return}
   rin.value='';
-  try{ post(await CometChat.sendMessage(new CometChat.TextMessage(ROOM,text,CometChat.RECEIVER_TYPE.GROUP))) }
+  try{ const m=await CometChat.sendMessage(new CometChat.TextMessage(ROOM,text,CometChat.RECEIVER_TYPE.GROUP));
+    post(m); recheck(m.getId()) }
   catch(err){ rin.value=text; say('bot','Not sent: '+(err.message||err.code||err),'err',rlog) }
 };
 
@@ -1799,6 +1817,7 @@ function measureBar(){
 const setChat=on=>{
   document.body.classList.toggle('chat',on);
   $('mask').textContent=on?'Close chat':MASKTEXT();
+  joinIfShown();   // the room is the default tab, so the first open starts loading it
   const room=$('chat').classList.contains('room'), l=room?rlog:log, i=room?rin:input;
   if(on){ l.scrollTop=l.scrollHeight; i.focus({preventScroll:true}) } else i.blur();
 };
@@ -1843,6 +1862,7 @@ function applyMode(){
   mstep(RJ);        // rebuilds the pager, or clears it when leaving phone mode
   netmark();
   measureBar();
+  joinIfShown();    // desktop shows the room at once; a fold opening into desktop does too
   dirty=true;
 }
 MQ.addEventListener('change',applyMode);

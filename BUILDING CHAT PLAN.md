@@ -60,6 +60,8 @@ it when it creates the user. No prompt, no new UI.
 **D5. Load timing: on the first open of the Building chat tab.** A visitor who only navigates
 never downloads 589 KB, never opens a socket, and never counts toward the 100 MAU. This keeps
 the boot cost the `VISUAL PERFORMANCE PLAN.md` work paid for.
+*(Revised: Building chat is now the default tab everywhere, so a desktop joins at page open and a
+phone when Chat is opened. Every visitor who joins counts toward the 100 MAU.)*
 
 **D6. History (default, not asked):** on open, load the last 30 text messages, then go live.
 
@@ -89,6 +91,8 @@ addMessageListener('room', {
   onTextMessageReceived: m => only if m.getReceiverId() === GUID,
   onMessageModerated:    m => my own bubble: APPROVED -> normal, PENDING or DISAPPROVED -> stays dimmed
                               (Khush, 2026-10-07: no "removed" notice, a dimmed bubble is enough)
+                              The event never arrived in testing, so recheck() also asks
+                              getMessageDetails() every 2 s for up to 30 s after a send.
 })
 ```
 
@@ -100,6 +104,8 @@ addMessageListener('room', {
 **UI.** This follows the PWA rules in `.claude/PWA.md`: nothing scrolls, and the chat overlays the model.
 
 - The `#chat` header `<p class="k">Ask</p>` becomes two tabs: **Ask** · **Building chat**. Ask is the default, and the assistant chat is untouched.
+  *(Revised: now **Building chat** on the left as the default and **Ask AI** on the right margin,
+  both bordered like buttons, on phone and desktop.)*
 - The Building panel gets its own log (`#rlog`) and form (`#rf`). It reuses `.msg.u` (you) and `.msg.a` (others), and each of the others' bubbles carries a small mono name line. `#chips` is hidden on this tab.
 - `say()` gains an optional target log instead of a second copy of it.
 - Phone: the same `aside` overlay that `#mask` opens. `setChat()` focuses whichever tab's input is showing.
