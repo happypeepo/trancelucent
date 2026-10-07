@@ -433,7 +433,7 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
         <button class="lnk arr" id="invX" data-ax="Horizontal" aria-pressed="true" aria-label="Invert horizontal drag direction">&#8646;</button>
         <button class="lnk arr" id="invY" data-ax="Vertical" aria-pressed="true" aria-label="Invert vertical drag direction">&#8645;</button>
       </div>
-      <button class="lnk" id="home" title="Reset view — isometric, every level">Reset view</button>
+      <button class="lnk" id="home" title="Clears a picked space; pressed again, resets the view">Reset</button>
     </div>
 
     <div class="hud bl">
@@ -1395,7 +1395,14 @@ $('clear').onclick=async()=>{
 };
 
 /* ---- camera input ---- */
-$('home').onclick=resetView;
+// Reset is two-step (Khush): a space you tapped that is still waiting for its pair (PICK is
+// 'to' only then; the boot's seeded From/To never sets it) is deselected first; pressed again,
+// or with nothing tapped, it resets the view. A drawn route is still Escape's to clear.
+function deselect(){
+  FROM=HERE=null; PICK='from'; $('from').value='';
+  $('prompt').textContent=HINT(); dirty=true;
+}
+$('home').onclick=()=>PICK==='to'?deselect():resetView();
 // a cube only ever shows three faces; these reach the other three, exactly as
 // the rotate arrows do in Fusion/123D
 $('rotL').onclick=()=>{aim.yaw-=Math.PI/2};
