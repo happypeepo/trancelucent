@@ -193,7 +193,15 @@ select:hover{border-color:var(--dim)}
 /* chat — stays exactly where it was, bottom of the sidebar */
 #chat{flex:0 0 auto;height:232px;display:flex;flex-direction:column;overflow:hidden;
   padding:14px 18px 16px;background:var(--sunk)}
-#log{flex:1 1 auto;overflow:auto;min-height:40px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+#log,#rlog{flex:1 1 auto;overflow:auto;min-height:40px;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+/* two tabs on one panel: Ask (the assistant) and Building chat (everyone viewing this building) */
+.tab{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;
+  color:var(--dimmer);cursor:pointer}
+.tab.on{color:var(--ink)}
+.tab:hover{color:var(--live)}
+#chat.room :is(#log,#chips,#cf),#chat:not(.room) :is(#rlog,#rf){display:none}
+.who{display:block;font:400 10px/1.4 var(--mono);letter-spacing:.08em;color:var(--dim);margin-bottom:2px}
+.msg.pend{opacity:.55}
 .msg{max-width:90%;padding:9px 12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
 .msg.u{align-self:flex-end;background:#12212a;border-left:2px solid var(--live);color:var(--ink)}
 .msg.a{align-self:flex-start;background:#0e141a;border-left:2px solid var(--rule2);color:#c3ced7}
@@ -207,11 +215,11 @@ select:hover{border-color:var(--dim)}
   background:transparent;border:1px solid var(--rule2);color:var(--dim);padding:6px 9px;
   font:400 11px/1.3 var(--mono);cursor:pointer;text-align:left}
 .chip:hover{border-color:var(--live);color:var(--live)}
-#cf{flex:0 0 auto;display:flex;gap:8px}
-#ci{flex:1;min-width:0;font-family:var(--sans);font-size:13.5px}
-#cf button{font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--void);background:var(--ink);
+#cf,#rf{flex:0 0 auto;display:flex;gap:8px}
+#ci,#ri{flex:1;min-width:0;font-family:var(--sans);font-size:13.5px}
+:is(#cf,#rf) button{font:600 11px/1 var(--mono);letter-spacing:.16em;color:var(--void);background:var(--ink);
   border:1px solid var(--ink);padding:0 15px;cursor:pointer}
-#cf button:hover{background:var(--live);border-color:var(--live)}
+:is(#cf,#rf) button:hover{background:var(--live);border-color:var(--live)}
 
 :focus-visible{outline:1px solid var(--live);outline-offset:2px}
 ::-webkit-scrollbar{width:8px;height:8px}
@@ -292,10 +300,10 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
   body.chat aside{transform:none;opacity:1;visibility:visible}
   #ctrl,#read{display:none}
   #chat{flex:1 1 auto;height:auto;padding:14px 16px calc(14px + env(safe-area-inset-bottom))}
-  #log{gap:10px}
+  #log,#rlog{gap:10px}
   .msg{max-width:94%;font-size:15px}
-  #ci{font-size:16px;padding:12px 12px}          /* 16px or iOS zooms the page on focus */
-  #cf button{padding:0 18px}
+  #ci,#ri{font-size:16px;padding:12px 12px}      /* 16px or iOS zooms the page on focus */
+  :is(#cf,#rf) button{padding:0 18px}
   .chip{font-size:12px;padding:9px 11px}
 
   /* ---- the bar ---- */
@@ -468,11 +476,16 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
     <div id="read"><p class="k">Route</p><p class="void">No route traced.</p></div>
 
     <div id="chat">
-      <p class="k">Ask</p>
+      <p class="k" role="tablist"><button type="button" class="tab on" role="tab" data-t="ask">Ask</button><button type="button" class="tab" role="tab" data-t="room">Building chat</button></p>
       <div id="log"></div>
       <div id="chips"></div>
       <form id="cf" autocomplete="off">
         <input id="ci" type="text" placeholder="Where do you want to go?" aria-label="Ask about the building">
+        <button type="submit">Send</button>
+      </form>
+      <div id="rlog"></div>
+      <form id="rf" autocomplete="off">
+        <input id="ri" type="text" maxlength="500" placeholder="Message everyone here" aria-label="Message everyone viewing this building">
         <button type="submit">Send</button>
       </form>
     </div>
@@ -1479,10 +1492,10 @@ const log=$('log'), input=$('ci'), chips=$('chips');
 let HINTS=[];   // written from the loaded building, so they never name another site
 let TURNS=[], busy=false;
 
-function say(who,text,cls){
+function say(who,text,cls,into=log){
   const d=document.createElement('div');
   d.className='msg '+(who==='you'?'u':'a')+(cls?' '+cls:'');
-  d.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; return d;
+  d.textContent=text; into.appendChild(d); into.scrollTop=into.scrollHeight; return d;
 }
 
 async function ask(text){
@@ -1531,8 +1544,9 @@ const HINT = () => MOBILE
   : 'drag to orbit · scroll to zoom · shift-drag to pan';
 addEventListener('keydown',e=>{
   if(e.key!=='Escape') return;
-  // mid-sentence in the chat box, Escape belongs to the sentence
-  if(document.activeElement===input&&input.value){input.value=''; return}
+  // mid-sentence in either chat box, Escape belongs to the sentence
+  const a=document.activeElement;
+  if((a===input||a===$('ri'))&&a.value){a.value=''; return}
   clearRoute();
 });
 
@@ -1586,6 +1600,99 @@ say('bot','Ask where you want to go, find an empty room or a professor, or tell 
   a.textContent=short(other.name);
   a.title='Switch to '+other.name; a.hidden=false;
 })();
+
+/* ---- building chat ----------------------------------------------------------
+   One public CometChat group per building, and its id is this page's own slug, so one file
+   still serves every building. BUILDING CHAT PLAN.md. Nothing here runs until the tab is first
+   opened: a visitor who only navigates never downloads the 600 KB SDK, never opens a socket,
+   and never becomes a CometChat user. The server mints the login pass (/chat-token), so no
+   CometChat key ever reaches this page.
+------------------------------------------------------------------------------ */
+const ROOM=BASE.split('/').pop().toLowerCase();
+const RNAME=ROOM.charAt(0).toUpperCase()+ROOM.slice(1);
+const rlog=$('rlog'), rin=$('ri');
+// pinned and hashed: an upstream change can't alter what runs here without failing the load
+const SDK='https://unpkg.com/@cometchat/chat-sdk-javascript@4.2.0/CometChat.js';
+const SRI='sha384-T04ptml56Svi+//wMNdJvT+Fa8gC/WoUYjV3hehep92xWVkvbMGFtVviry0BsxJc';
+let JOINING=null, ME=null;
+// A moderation verdict can arrive before sendMessage resolves, so verdicts are kept by
+// message id and applied whenever the bubble exists, in whichever order the two turn up.
+const BUBBLE=new Map(), VERDICT=new Map();
+
+function verdict(id){
+  const d=BUBBLE.get(id), s=VERDICT.get(id); if(!d) return;
+  d.classList.toggle('pend',s==='pending'||s==='disapproved');   // not sent out: stays dimmed, no notice
+}
+function post(m){
+  const mine=m.getSender().getUid()===ME;
+  const d=say(mine?'you':'bot',m.getText(),'',rlog);
+  if(!mine){const b=document.createElement('b'); b.className='who'; b.textContent=m.getSender().getName(); d.prepend(b);
+    rlog.scrollTop=rlog.scrollHeight}   // the name line made the bubble taller after say() scrolled
+  BUBBLE.set(m.getId(),d);
+  if(!VERDICT.has(m.getId())) VERDICT.set(m.getId(),m.getModerationStatus());
+  verdict(m.getId());
+}
+function loadSDK(){
+  return new Promise((ok,no)=>{const s=document.createElement('script');
+    s.src=SDK; s.integrity=SRI; s.crossOrigin='anonymous'; s.onload=ok;
+    s.onerror=()=>no(new Error('Could not load the chat. Check your connection and reopen this tab.'));
+    document.head.appendChild(s)});
+}
+async function join(){
+  const wait=say('bot','joining the '+RNAME+' chat…','wait',rlog);
+  try{
+    const res=await fetch('/chat-token');
+    if(res.status===503) throw new Error('Chat is not set up on this server.');
+    if(!res.ok) throw new Error('Could not reach the chat: HTTP '+res.status);
+    const cfg=await res.json();
+    if(!window.CometChat) await loadSDK();   // a retry after a failed join must not inject it twice
+    // region is the one setting that fails silently: init succeeds and nothing ever arrives
+    await CometChat.init(cfg.app_id,new CometChat.AppSettingsBuilder()
+      .setRegion(cfg.region).autoEstablishSocketConnection(true).build());
+    let me=await CometChat.getLoggedinUser();
+    if(!me){   // first time on this browser: the server makes our anonymous user and a pass
+      const t=await fetch('/chat-token',{method:'POST',headers:VHDR});
+      if(!t.ok) throw new Error('Could not sign in to the chat: HTTP '+t.status);
+      me=await CometChat.login((await t.json()).token);
+    }
+    const g=await CometChat.getGroup(ROOM).catch(e=>{if(e&&e.code==='ERR_GUID_NOT_FOUND') return null; throw e});
+    if(!g) throw new Error('Chat is not set up for '+RNAME+' yet.');
+    if(!g.getHasJoined()) await CometChat.joinGroup(ROOM,CometChat.GROUP_TYPE.PUBLIC,'');
+    ME=me.getUid();   // set only once we are in the room: Send waits on it
+    // a visitor who opened both buildings is in both groups, and the listener hears every
+    // group they are in, so a message only lands here if it was sent to THIS building
+    CometChat.addMessageListener('room',new CometChat.MessageListener({
+      onTextMessageReceived:m=>{if(m.getReceiverType()==='group'&&m.getReceiverId()===ROOM) post(m)},
+      onMessageModerated:m=>{VERDICT.set(m.getId(),m.getModerationStatus()); verdict(m.getId())},
+    }));
+    const old=await new CometChat.MessagesRequestBuilder().setGUID(ROOM).setLimit(30)
+      .setCategories(['message']).setTypes(['text']).build().fetchPrevious();
+    wait.remove();
+    say('bot','Everyone viewing '+RNAME+' right now shares this room. Messages are public and moderated.','wait',rlog);
+    old.forEach(post);
+    if(!old.length) say('bot','No messages yet. Say hi.','wait',rlog);
+  }catch(err){
+    wait.remove(); JOINING=null;   // the next open of the tab tries again
+    say('bot',err.message||String(err),'err',rlog);
+  }
+}
+function tab(room){
+  $('chat').classList.toggle('room',room);
+  document.querySelectorAll('.tab').forEach(b=>{const on=(b.dataset.t==='room')===room;
+    b.classList.toggle('on',on); b.setAttribute('aria-selected',on)});
+  if(room&&!JOINING) JOINING=join();
+  const l=room?rlog:log, i=room?rin:input;
+  l.scrollTop=l.scrollHeight; i.focus({preventScroll:true});
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>tab(b.dataset.t==='room'));
+$('rf').onsubmit=async e=>{
+  e.preventDefault();
+  const text=rin.value.trim(); if(!text) return;
+  if(!ME){say('bot','Still joining the chat, one moment.','wait',rlog); return}
+  rin.value='';
+  try{ post(await CometChat.sendMessage(new CometChat.TextMessage(ROOM,text,CometChat.RECEIVER_TYPE.GROUP))) }
+  catch(err){ rin.value=text; say('bot','Not sent: '+(err.message||err.code||err),'err',rlog) }
+};
 
 /* ---- phone ------------------------------------------------------------------
    Everything here is inert on desktop: MOBILE gates the DOM move and the bar is
@@ -1675,7 +1782,8 @@ function measureBar(){
 const setChat=on=>{
   document.body.classList.toggle('chat',on);
   $('mask').textContent=on?'Close chat':MASKTEXT();
-  if(on){ log.scrollTop=log.scrollHeight; input.focus({preventScroll:true}) } else input.blur();
+  const room=$('chat').classList.contains('room'), l=room?rlog:log, i=room?rin:input;
+  if(on){ l.scrollTop=l.scrollHeight; i.focus({preventScroll:true}) } else i.blur();
 };
 
 // Handlers are wired ONCE and unconditionally — they cannot be wired inside a mode

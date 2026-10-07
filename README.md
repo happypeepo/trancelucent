@@ -65,7 +65,8 @@ Open <http://127.0.0.1:8000>.
 | Geometry | networkx | Dijkstra over ~200 nodes is microseconds. Nothing here justifies PostGIS or a graph database. |
 | API | FastAPI + uvicorn | JSON with no ceremony. Route handlers contain no logic. |
 | State | One JSON file in memory | The dataset is a building. A database would add operational cost and no capability. |
-| Frontend | Vanilla JS + inline SVG | No framework, no bundler, no CDN. Two self-contained files. |
+| Frontend | Vanilla JS + inline SVG | No framework, no bundler. Two self-contained files. The one CDN script is the CometChat SDK, pinned and hash-checked, and loaded only when the building chat is opened. |
+| Building chat | CometChat | Hosted rooms, sockets and moderation. Running our own would mean a socket server, message storage and a filter. |
 | 3D | Hand-written projection | ~60 lines of matrix maths beats a 600 KB dependency for 200 boxes. One SVG element is pooled and reused per shape, so there is no virtual DOM to diff either. |
 
 ---
@@ -147,6 +148,7 @@ GET  /                  building picker
 GET  /health            service health check
 GET  /<bldg>/state      GET  /<bldg>/route      POST /<bldg>/block      POST /<bldg>/chat
 GET  /buildings         what is mounted, so the frontend never has to guess
+GET  /chat-token        CometChat app id + region       POST /chat-token   a login pass for this visitor
 ```
 
 ### The data model
@@ -191,6 +193,25 @@ decision record is `timetables/TIMETABLE INCORPORATION PLAN.md`.
   3pm Thursday" in chat just moves the page's clock.
 - **Halves.** Labs split on the timetable (B115A / B115B) are drawn as split boxes, one colour
   per half — an approximation, like the model.
+
+---
+
+## Building chat
+
+Everyone with `/bhaskaracharya` open shares one live chat room, and `/aryabhatta` has its own.
+It sits in a second tab beside the assistant: **Ask · Building chat**. The full plan and every
+decision is `BUILDING CHAT PLAN.md`.
+
+- **No accounts.** The page reuses its anonymous visitor id. On first open, `POST /chat-token`
+  creates a matching CometChat user (shown as `Visitor 4F2A`) and returns a login pass. The REST
+  key never leaves the server; set `COMETCHAT_APP_ID`, `COMETCHAT_REGION` and
+  `COMETCHAT_REST_KEY` in `.env` (and as fly secrets).
+- **One room per building.** Each room is a public CometChat group whose id is the URL slug, so
+  `trancelucent.html` still hardcodes no building.
+- **Moderation is CometChat's,** configured in its dashboard. A blocked message is never
+  delivered to anyone else; on the sender's screen it just stays dimmed.
+- **Costs nothing until used.** The SDK, its socket and the CometChat user are created only when
+  someone opens the tab, so the 3D view's boot is unchanged.
 
 ---
 

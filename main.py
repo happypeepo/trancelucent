@@ -2,6 +2,9 @@
 import json
 import os
 import re
+import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -114,6 +117,48 @@ def icon(size: int):
     if size not in (192, 512):
         raise HTTPException(404)
     return FileResponse(f"icon-{size}.png", media_type="image/png")
+
+
+# The building chat (BUILDING CHAT PLAN.md): one public CometChat group per building. The REST
+# key never leaves this process. The page gets the public app id and region, plus a login pass
+# minted here for its own anonymous visitor id, so no visitor ever needs a CometChat account.
+CC_APP, CC_REGION, CC_KEY = (os.getenv(k, "").strip() for k in
+                             ("COMETCHAT_APP_ID", "COMETCHAT_REGION", "COMETCHAT_REST_KEY"))
+UID = re.compile(r"[a-z0-9_-]{1,100}")   # CometChat's own uid rule, lowercased as it stores them
+
+
+def cometchat(path, body):
+    req = urllib.request.Request(
+        f"https://{CC_APP}.api-{CC_REGION}.cometchat.io/v3{path}", data=json.dumps(body).encode(),
+        headers={"apikey": CC_KEY, "content-type": "application/json", "accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.load(r)["data"]
+
+
+@app.get("/chat-token")
+def chat_config():
+    """Enough to start the SDK. The page asks for a pass only when it has no session yet."""
+    if not (CC_APP and CC_REGION and CC_KEY):
+        raise HTTPException(503, "chat is not set up on this server")
+    return {"app_id": CC_APP, "region": CC_REGION}
+
+
+@app.post("/chat-token")
+def chat_token(x_visitor_id: str | None = Header(None)):
+    cfg = chat_config()
+    uid = (x_visitor_id or "").lower()
+    if not UID.fullmatch(uid):   # it goes into a REST path below, so this is the trust boundary
+        raise HTTPException(400, "bad visitor id")
+    try:
+        try:   # a new visitor: create the user and get its pass in one call
+            data = cometchat("/users", {"uid": uid, "name": "Visitor " + uid[-4:].upper(),
+                                        "withAuthToken": True})
+        except urllib.error.HTTPError:   # it already exists; a real failure resurfaces just below
+            data = cometchat(f"/users/{uid}/auth_tokens", {})
+        return {**cfg, "token": data["authToken"]}
+    except (OSError, KeyError, ValueError) as e:   # URLError and HTTPError are OSErrors
+        print(f"chat-token: {e}", file=sys.stderr)
+        raise HTTPException(502, "could not reach the chat service")
 
 
 class ChatIn(BaseModel):
