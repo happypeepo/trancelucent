@@ -1082,11 +1082,14 @@ function render(){
     if(!vis(n)&&!onRoute) continue;      // a route label survives its deck being hidden
     const r=n.svg_rect, q=project(r[0]+r[2]/2,r[1]+r[3]/2,roof(n)+26);
     const on=ROUTE&&ROUTE.includes(id), me=id===HOVER||id===FROM||id===TO;
-    list.push(put('lb'+id,'text',{x:q[0],y:q[1],'text-anchor':'middle','font-size':12.5,
+    const at={x:q[0],y:q[1],'text-anchor':'middle','font-size':12.5,
       'font-weight':500,fill:!n.passable?'#ff8fa3':on?'#00e5ff':'#e9eef3',
-      stroke:'#07090c','stroke-width':4,'paint-order':'stroke','letter-spacing':'.04em'},
-      // on a phone the availability text would run off a 390px screen; #prompt carries it there
-      n.name+(me?'  '+LEVEL_NAME(flr(n))+(MOBILE?'':availText(n)):'')));
+      stroke:'#07090c','stroke-width':4,'paint-order':'stroke','letter-spacing':'.04em'};
+    // on one line the availability text would run off a 390px screen, so a phone puts it on a
+    // second line under the name: the same status desktop shows, right where the tap was
+    list.push(put('lb'+id,'text',at,n.name+(me?'  '+LEVEL_NAME(flr(n))+(MOBILE?'':availText(n)):'')));
+    const st=me&&MOBILE?availText(n).replace(/^\s*·\s*/,''):'';
+    if(st) list.push(put('ls'+id,'text',{...at,y:q[1]+17,'font-size':11.5},st));
   }
   commit(list);
 }
