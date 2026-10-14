@@ -214,6 +214,10 @@ Splice by the `/* ---- name ---- */` banner comments, never by line number.
 
 ## Chat assistant behaviour
 
+- The chat panel opens on **Ask AI** (the assistant); **Building chat** (one CometChat group per
+  building) is the other tab. The room fetches `/chat-token`, loads the SDK and opens its socket
+  only once its tab is chosen, so a visitor who never opens it never becomes a CometChat user,
+  and CometChat bills per monthly active user. Keep it that way.
 - `gemini.chat` only parses the sentence into one action; every route, distance and blockage is
   computed in `main.py` against networkx, every free room and professor in `timetable.py`.
 - The model's own prose is trusted only for `not_found`. A destination nobody can place gets one

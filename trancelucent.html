@@ -489,8 +489,8 @@ body.lite .route,body.lite .climb,body.lite .hoist{animation:none}
 
     <div id="read"><p class="k">Route</p><p class="void">No route traced.</p></div>
 
-    <div id="chat" class="room">
-      <p class="k" role="tablist"><button type="button" class="tab on" role="tab" aria-selected="true" data-t="room">Building chat</button><button type="button" class="tab" role="tab" aria-selected="false" data-t="ask">Ask AI</button></p>
+    <div id="chat">
+      <p class="k" role="tablist"><button type="button" class="tab" role="tab" aria-selected="false" data-t="room">Building chat</button><button type="button" class="tab on" role="tab" aria-selected="true" data-t="ask">Ask AI</button></p>
       <div id="log"></div>
       <div id="chips"></div>
       <form id="cf" autocomplete="off">
@@ -1718,8 +1718,8 @@ async function recheck(id){
     try{ VERDICT.set(id,(await CometChat.getMessageDetails(id)).getModerationStatus()); verdict(id) }catch{}
   }
 }
-// Building chat is the default panel everywhere. It joins once it is on screen: at page
-// open on a desktop, where the sidebar is always visible, and when Chat is opened on a phone.
+// Ask is the default panel, so the room joins only once its tab is chosen AND on screen: a
+// retry after a failed join, a phone reopening Chat on the room tab, a Fold opening into desktop.
 function joinIfShown(){
   if(!JOINING&&$('chat').classList.contains('room')&&(!MOBILE||document.body.classList.contains('chat'))) JOINING=join();
 }
@@ -1871,7 +1871,7 @@ function measureBar(){
 const setChat=on=>{
   document.body.classList.toggle('chat',on);
   $('mask').textContent=on?'Close chat':MASKTEXT();
-  joinIfShown();   // the room is the default tab, so the first open starts loading it
+  joinIfShown();   // only if the room tab was left chosen; Ask, the default, needs nothing
   const room=$('chat').classList.contains('room'), l=room?rlog:log, i=room?rin:input;
   if(on){ l.scrollTop=l.scrollHeight; i.focus({preventScroll:true}) } else i.blur();
 };
@@ -1916,7 +1916,7 @@ function applyMode(){
   mstep(RJ);        // rebuilds the pager, or clears it when leaving phone mode
   netmark();
   measureBar();
-  joinIfShown();    // desktop shows the room at once; a fold opening into desktop does too
+  joinIfShown();    // a fold opening into desktop with the room tab chosen shows it at once
   dirty=true;
 }
 MQ.addEventListener('change',applyMode);
