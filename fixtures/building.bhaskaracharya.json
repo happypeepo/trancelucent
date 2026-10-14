@@ -726,7 +726,9 @@
    ],
    "floor": 2,
    "visual_signature": "Lab/classroom off the north corridor of the first floor, door opening south onto the escape route",
-   "attributes": {}
+   "attributes": {
+    "club": "codecell"
+   }
   },
   {
    "id": "ug_seminar_hall_114_f2",

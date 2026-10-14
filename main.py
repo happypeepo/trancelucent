@@ -268,6 +268,8 @@ def mount_building(prefix, w):
                 continue
             if lab and not LAB.search(w.nodes[node]["name"]):
                 continue
+            if w.nodes[node].get("attributes", {}).get("club"):
+                continue   # a club's room is the club's, never an empty room; the map says so too
             r = w.route(origin, node, visitor=visitor)
             if r["path"]:
                 ranked.append((r["distance_m"], part, node, r))

@@ -727,6 +727,21 @@ function liveParts(n){
   if(!AVAIL||!ST||!ST.timetable||!inHours(clock())) return null;   // plain model off hours
   return ST.timetable.nodes[n.id]||null;
 }
+// A club's room shows the club, never the timetable: a black box with the club's mark on its
+// roof and the club as its status, at any hour and whatever the availability toggle says.
+// `attributes.club` in the building file says whose room it is; this says how the club looks.
+// A mark is drawn in its own units (w x h, centred on 0,0) and render() fits it to the roof.
+const CLUBS={
+  codecell:{name:'CodeCell', red:'#f64253', mark:{w:200, h:77, stroke:12,
+    // the two chevrons either side, filled
+    fill:'M-100 0L-69.5-38.5H-51L-81.5 0L-51 38.5H-69.5ZM100 0L69.5-38.5H51L81.5 0L51 38.5H69.5Z',
+    // the infinity: lobes of radius 25 at x=±33 joined by their inner tangents, stroked
+    line:'M-14.06-16.32L14.06 16.32A25 25 0 1 0 14.06-16.32L-14.06 16.32A25 25 0 1 1-14.06-16.32Z',
+    // the strand that passes over at the crossing, as in the logo
+    over:'M-6.2-7.2L6.2 7.2'}},
+};
+const CLUB_TONE={s:'#8fa3ae',f:'rgba(0,0,0,',t:.76};
+const clubOf=n=>n.attributes&&CLUBS[n.attributes.club]||null;
 function partState(p,c){
   const on=h=>p.busy.filter(b=>b[0]===c.day&&b[1]<=h&&h<b[2]&&!b[5]);
   const now=on(c.hour);
@@ -753,6 +768,7 @@ function availToneNow(n,i){
        : {s:'#8fa3ae',f:'rgba(143,163,174,',t:.04,d:'4 3'};
 }
 function availText(n){
+  const club=clubOf(n); if(club) return '  ·  '+club.name;
   const parts=liveParts(n); if(!parts) return '';
   const c=clock(), hh=h=>String(h).padStart(2,'0')+':00';
   return '  ·  '+parts.map(p=>{const s=partState(p,c);
@@ -789,7 +805,7 @@ function tone(n,part){
   if(ROUTE&&ROUTE.includes(n.id))     return {s:'#00e5ff',f:'rgba(0,229,255,',t:.24};
   if(n.id===HOVER||n.id===FROM||n.id===TO)
                                       return {s:'#e9eef3',f:'rgba(233,238,243,',t:.16};
-  return availTone(n,part)||{s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
+  return clubOf(n)?CLUB_TONE:availTone(n,part)||{s:'#8fa3ae',f:'rgba(143,163,174,',t:.07};
 }
 
 /* ---- element pool ----
@@ -971,7 +987,7 @@ function render(){
       // A lab the timetable splits into halves (B115A / B115B) is drawn as that many boxes
       // along its long side, A first from the west/north end: an approximation, like the
       // model itself. Each part carries its own availability colour.
-      const k=(liveParts(n)||[0]).length;
+      const k=clubOf(n)?1:(liveParts(n)||[0]).length;   // a club's room is one room, not timetable halves
       for(let i=0;i<k;i++){
         const b=w>=h?box(x+w*i/k,y,w/k,h,z1,z2):box(x,y+h*i/k,w,h/k,z1,z2);
         b[3]=0; b[4]=i; slabs.push(b);
@@ -1013,6 +1029,24 @@ function render(){
           .map(q=>project(q[0],q[1],z2));
         onDeck(f,zm,put('mk'+n.id+'.car','polygon',{points:pts(car),fill:'none',
           stroke:t.s,'stroke-width':1,'stroke-opacity':.8,'pointer-events':'none'}));
+      }
+    }
+    // A club's mark lies on its roof. The projection is orthographic, so the roof plane reaches
+    // the screen through one affine map: the mark is a fixed path in its own units, and a
+    // transform built from three projected points tilts, turns and zooms it with the building.
+    const club=clubOf(n);
+    if(club&&!LOW){
+      const m=club.mark, s=.8*Math.min(w/m.w,h/m.h), cx=x+w/2, cy=y+h/2;
+      const po=project(cx,cy,z2), pu=project(cx+s,cy,z2), pv=project(cx,cy+s,z2), q4=v=>Math.round(v*1e4)/1e4;
+      const at={transform:'matrix('+q4(pu[0]-po[0])+' '+q4(pu[1]-po[1])+' '+q4(pv[0]-po[0])+' '+
+        q4(pv[1]-po[1])+' '+r1(po[0])+' '+r1(po[1])+')','pointer-events':'none'}, key='cl'+n.id+'.';
+      // po[2] is the roof's own depth (the centre's depth is its corners' average), so the mark
+      // paints straight after the roof and under anything nearer
+      onDeck(f,po[2]+.001,put(key+'c','path',{...at,d:m.fill,fill:club.red}));
+      onDeck(f,po[2]+.002,put(key+'i','path',{...at,d:m.line,fill:'none',stroke:club.red,'stroke-width':m.stroke}));
+      if(tone(n)===CLUB_TONE){   // the over-under gap is cut in roof black, so only on a black roof
+        onDeck(f,po[2]+.003,put(key+'g','path',{...at,d:m.over,fill:'none',stroke:'#000','stroke-width':m.stroke+6}));
+        onDeck(f,po[2]+.004,put(key+'o','path',{...at,d:m.over,fill:'none',stroke:club.red,'stroke-width':m.stroke}));
       }
     }
   }

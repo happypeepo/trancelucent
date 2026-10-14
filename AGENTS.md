@@ -186,6 +186,12 @@ Splice by the `/* ---- name ---- */` banner comments, never by line number.
 - **The page computes "now"** from weekly busy spans shipped in `/state`, in India time (fixed
   +05:30 via `Intl`, never the device zone), so colours work offline. Chat answers are computed on
   the server, also in India time.
+- **A club's room shows the club, never the timetable.** A node with `attributes.club` (only
+  Bhaskaracharya 112, `"codecell"`) is one black box with the club's mark on its roof, and its
+  status reads the club's name at every hour, whatever the availability toggle says. The page's
+  `CLUBS` table holds each club's name, colour and mark (a path in its own units that `render()`
+  fits to the roof through one affine `matrix()`, key prefix `cl`). Blocked, route and
+  hover/from/to still take priority over it in `tone()`. `free_room` never offers a club's room.
 - `MAKEUP LEC` slots count as free, with a note. Room halves (B115A/B115B) each have a state and
   are drawn as split boxes along the long side.
 - Free-room search: no origin means ask where they are; then the single nearest free room by
